@@ -8,10 +8,9 @@ def main():
     
     train_data, val_data, vocab_size, decode,  = utils.prepare_data()
 
-    model = nn_model.GPTLanguageModel(vocab_size)
-    m = model.to(config.device)
+    model = nn_model.GPTLanguageModel(vocab_size).to(config.device)
     # print the number of parameters in the model
-    print(sum(p.numel() for p in m.parameters())/1e6, 'M parameters')
+    print(sum(p.numel() for p in model.parameters())/1e6, 'M parameters')
 
     # create a PyTorch optimizer
     optimizer = torch.optim.AdamW(model.parameters(), lr=config.learning_rate)
@@ -33,8 +32,8 @@ def main():
         optimizer.step()
 
     # generate from the model
-    context = torch.zeros((1, 1), dtype=torch.long, device=utils.device)
-    print(decode(m.generate(context, max_new_tokens=500)[0].tolist()))
-    #open('more.txt', 'w').write(decode(m.generate(context, max_new_tokens=10000)[0].tolist()))
+    context = torch.zeros((1, 1), dtype=torch.long, device=config.device)
+    #print(decode(model.generate(context, max_new_tokens=500)[0].tolist()))
+    open('more.txt', 'w').write(decode(model.generate(context, max_new_tokens=10000)[0].tolist()))
 
 main()
