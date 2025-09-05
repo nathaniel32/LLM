@@ -9,6 +9,9 @@ def main():
     tokenizer = Tokenizer('data/vocab_en.txt')
     train_data, val_data  = utils.prepare_data()
 
+    #print(repr(val_data))
+    #print(tokenizer.tokenize(val_data))
+
     train_data = torch.tensor(tokenizer.tokenize(train_data), dtype=torch.long)
     val_data = torch.tensor(tokenizer.tokenize(val_data), dtype=torch.long)
 
