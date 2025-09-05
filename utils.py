@@ -51,7 +51,6 @@ def generate(model, idx, max_new_tokens, tokenizer=None):
         idx = torch.cat((idx, idx_next), dim=1) # (B, T+1)
 
         if tokenizer:
-            last_token_id = idx_next[0].item()
-            last_token_text = tokenizer.detokenize([last_token_id])
-            print(last_token_text, end="", flush=True)
+            text_so_far = tokenizer.detokenize(idx[0].tolist())
+            print(text_so_far, end="\r", flush=True)
     return idx
