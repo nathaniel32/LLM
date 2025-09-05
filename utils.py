@@ -1,5 +1,6 @@
 import torch
 import config
+from torch.nn import functional as F
 
 def prepare_data():
     with open('data/input.txt', 'r', encoding='utf-8') as f:
@@ -32,3 +33,25 @@ def estimate_loss(model, data):
     loss_avg = losses.mean()
     model.train()
     return loss_avg
+
+def generate(model, idx, max_new_tokens, tokenizer=None):
+    # idx is (B, T) array of indices in the current context
+    for _ in range(max_new_tokens):
+        # crop idx to the last block_size tokens
+        idx_cond = idx[:, -config.block_size:]
+        # get the predictions
+        logits, loss = model(idx_cond)
+        # focus only on the last time step
+        logits = logits[:, -1, :] # becomes (B, C)
+        # apply softmax to get probabilities
+        probs = F.softmax(logits, dim=-1) # (B, C)
+        # sample from the distribution
+        idx_next = torch.multinomial(probs, num_samples=1) # (B, 1)
+        # append sampled index to the running sequence
+        idx = torch.cat((idx, idx_next), dim=1) # (B, T+1)
+
+        if tokenizer:
+            last_token_id = idx_next[0].item()
+            last_token_text = tokenizer.detokenize([last_token_id])
+            print(last_token_text, end="", flush=True)
+    return idx

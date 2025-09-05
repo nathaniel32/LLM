@@ -39,6 +39,7 @@ def main():
     # generate from the model
     context = torch.zeros((1, 1), dtype=torch.long, device=config.device)
     #print(decode(model.generate(context, max_new_tokens=500)[0].tolist()))
-    open('more.txt', 'w').write(tokenizer.detokenize(model.generate(context, max_new_tokens=10000)[0].tolist()))
+    with open('data/result.txt', 'w', encoding='utf-8') as f:
+        f.write(tokenizer.detokenize(utils.generate(context, max_new_tokens=10000, tokenizer=tokenizer)[0].tolist()))
 
 main()
