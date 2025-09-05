@@ -12,7 +12,6 @@ def main():
     train_data = torch.tensor(tokenizer.tokenize(train_data), dtype=torch.long)
     val_data = torch.tensor(tokenizer.tokenize(val_data), dtype=torch.long)
 
-    print(val_data)
     model = nn_model.GPTLanguageModel(tokenizer.vocab_size()).to(config.device)
     print(sum(p.numel() for p in model.parameters())/1e6, 'M parameters')
 

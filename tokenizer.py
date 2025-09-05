@@ -8,10 +8,20 @@ class Tokenizer:
         self.id2token = {idx: token for idx, token in enumerate(self.vocab)}
         
         self.UNK_ID = self.token2id.get('[UNK]', 0)
+        self.SPECIAL_TOKENS = {
+            '[NEWLINE]': '\n',
+            '[TAB]': '\t'
+        }
 
     def tokenize(self, text):
         tokens = []
-        for word in text.lower().split():  # split spasi
+        text = text.lower()
+        
+        #text = text.replace('\n', '[NEWLINE]').replace('\t', '[TAB]')
+        for token, char in self.SPECIAL_TOKENS.items():
+            text = text.replace(char, f' {token}')
+
+        for word in text.split():
             i = 0
             while i < len(word):
                 for j in range(len(word), i, -1):
@@ -33,6 +43,9 @@ class Tokenizer:
         word = ""
         for tid in token_ids:
             token = self.id2token.get(tid, '[UNK]')
+
+            if token in self.SPECIAL_TOKENS:
+                token = self.SPECIAL_TOKENS[token]
             if token.startswith("##"):
                 word += token[2:]
             else:
