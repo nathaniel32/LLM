@@ -3,7 +3,6 @@ from torch.nn import functional as F
 from contextlib import nullcontext
 from model import GPT, GPTConfig
 import tiktoken
-import time
 from benchmark import Benchmark
 
 class Main:
