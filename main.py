@@ -126,10 +126,29 @@ class Main:
 
         return idx
     
+    def warmup(self, model):
+        print("Warming up GPU...")
+
+        dummy_input = torch.randint(0, 50257, (1, 20), device=self.device)
+
+        model.eval()
+
+        with torch.no_grad():
+            with self.ctx:
+                for _ in range(5):
+                    _ = model(dummy_input, use_cache=self.use_cache)
+
+        if self.device == 'cuda':
+            torch.cuda.synchronize()
+
+        print("Warm-up done.\n")
+    
     def run(self, max_new_tokens=1000, temperature=0.8, top_k=200, start="the colors of the German flag are"):
         model = self.from_pretrained('gpt2')
         model.eval()
         model.to(self.device)
+
+        self.warmup(model)
 
         enc = tiktoken.get_encoding("gpt2")
         start_ids = enc.encode(start, allowed_special={"<|endoftext|>"})
