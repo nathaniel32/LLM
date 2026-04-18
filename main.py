@@ -185,6 +185,7 @@ class Main:
 
         return y, text
 
+"""
 for attn_type in ['mqa', 'mha']:
     main = Main(use_cache=False)
     y, text = main.run(attn_type=attn_type)
@@ -192,7 +193,6 @@ for attn_type in ['mqa', 'mha']:
     main_cache = Main(use_cache=True)
     y_cache, text_cache = main_cache.run(attn_type=attn_type)
 
-"""
 print(text)
 
 if torch.equal(y, y_cache):
@@ -200,3 +200,6 @@ if torch.equal(y, y_cache):
 else:
     print("== NO ==") 
 """
+
+main_cache = Main(use_cache=True)
+y_cache, text_cache = main_cache.run(max_new_tokens=3500, attn_type='mqa')
