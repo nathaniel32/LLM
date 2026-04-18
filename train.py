@@ -82,7 +82,7 @@ class Train:
         beta1 = 0.9
         beta2 = 0.95
 
-        ckpt_path = os.path.join(self.out_dir, 'ckpt.pt')
+        ckpt_path = os.path.join(self.out_dir, attn_type, 'ckpt.pt')
         if not os.path.exists(ckpt_path):
             print("Checkpoint not found!")
             resume = False
