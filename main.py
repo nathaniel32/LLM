@@ -161,8 +161,8 @@ class Main:
         print("Warm-up done.\n")
 
     def run(self, max_new_tokens=1000, temperature=0.8, top_k=200, start="the colors of the German flag are", attn_type="mqa"):
-        #model = self.from_pretrained('gpt2')
-        model = self.from_out(attn_type=attn_type)
+        model = self.from_pretrained('gpt2')
+        #model = self.from_out(attn_type=attn_type)
         model.eval()
         model.to(self.device)
 
@@ -203,3 +203,4 @@ else:
 
 main_cache = Main(use_cache=True)
 y_cache, text_cache = main_cache.run(max_new_tokens=1000, attn_type='mha')
+print(text_cache)
