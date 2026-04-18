@@ -166,7 +166,7 @@ class Main:
         model.eval()
         model.to(self.device)
 
-        self.warmup(model)
+        #self.warmup(model)
 
         enc = tiktoken.get_encoding("gpt2")
         start_ids = enc.encode(start, allowed_special={"<|endoftext|>"})
@@ -183,24 +183,22 @@ class Main:
         print('Total Token:', len(y[0]))
         print('-'*100)
 
-        return y, text
+        return text
 
-"""
-for attn_type in ['mqa', 'mha']:
-    main = Main(use_cache=False)
-    y, text = main.run(attn_type=attn_type)
+""" 
+main_warm = Main(use_cache=False)
+text_warm = main_warm.run(max_new_tokens=1000, attn_type='mha')
 
-    main_cache = Main(use_cache=True)
-    y_cache, text_cache = main_cache.run(attn_type=attn_type)
+main = Main(use_cache=True)
+text = main.run(max_new_tokens=1000, attn_type='mha')
 
 print(text)
-
-if torch.equal(y, y_cache):
+if text_warm == text:
     print("== OK ==")
 else:
-    print("== NO ==") 
+    print("== NO ==")
 """
 
 main = Main(use_cache=True)
-y, text = main.run(max_new_tokens=1000, attn_type='mha')
+text = main.run(max_new_tokens=1000, attn_type='mha')
 print(text)
