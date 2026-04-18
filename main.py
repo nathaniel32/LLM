@@ -160,9 +160,9 @@ class Main:
 
         print("Warm-up done.\n")
 
-    def run(self, max_new_tokens=1000, temperature=0.8, top_k=200, start="the colors of the German flag are"):
+    def run(self, max_new_tokens=1000, temperature=0.8, top_k=200, start="the colors of the German flag are", attn_type="mqa"):
         #model = self.from_pretrained('gpt2')
-        model = self.from_out(attn_type="mqa")
+        model = self.from_out(attn_type=attn_type)
         model.eval()
         model.to(self.device)
 
@@ -179,21 +179,24 @@ class Main:
         text = enc.decode(y[0].tolist())
 
         label = "use_cache=True" if self.use_cache else "use_cache=False"
-        print(f'\n[{label}]')
+        print(f'\n[{label}] - [{attn_type}]')
         print('Total Token:', len(y[0]))
         print('-'*100)
 
         return y, text
 
-main = Main(use_cache=False)
-y, text = main.run()
+for attn_type in ['mqa', 'mha']:
+    main = Main(use_cache=False)
+    y, text = main.run(attn_type=attn_type)
 
-main_cache = Main(use_cache=True)
-y_cache, text_cache = main_cache.run()
+    main_cache = Main(use_cache=True)
+    y_cache, text_cache = main_cache.run(attn_type=attn_type)
 
+"""
 print(text)
 
 if torch.equal(y, y_cache):
     print("== OK ==")
 else:
-    print("== NO ==")
+    print("== NO ==") 
+"""
