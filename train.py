@@ -149,8 +149,8 @@ class Train:
         model.train()
         return out
     
-    def train(self):
-        model, optimizer, iter_num, best_val_loss = self.get_model()
+    def train(self, resume=False):
+        model, optimizer, iter_num, best_val_loss = self.get_model(resume=resume)
 
         X, Y = self.get_batch('train')
         
@@ -158,14 +158,14 @@ class Train:
         local_iter_num = 0
         running_mfu = -1.0
         decay_lr = True # whether to decay the learning rate
-        eval_interval = 2000
+        eval_interval = 10
         always_save_checkpoint = True
         eval_only = False # if True, script exits right after the first eval
         gradient_accumulation_steps = 5 * 8
         scaler = torch.amp.GradScaler(enabled=(self.dtype == 'float16'))
         grad_clip = 1.0 # clip gradients at this value, or disable if == 0.0
         log_interval = 1
-        max_iters = 600000 # total number of training iterations
+        max_iters = 2000 # total number of training iterations
 
         while iter_num < max_iters:
             # determine and set the learning rate for this iteration
@@ -240,4 +240,4 @@ class Train:
             local_iter_num += 1
 
 train = Train()
-train.train()
+train.train(resume=True)
