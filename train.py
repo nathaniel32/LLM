@@ -195,7 +195,7 @@ class Train:
                 })
                 if losses['val'] < best_val_loss or always_save_checkpoint:
                     best_val_loss = losses['val']
-                    if iter_num > 0:
+                    if iter_num > 0 or always_save_checkpoint:
                         checkpoint = {
                             'model': model.state_dict(),
                             'optimizer': optimizer.state_dict(),
@@ -208,6 +208,7 @@ class Train:
                         
                         os.makedirs(save_dir, exist_ok=True)
                         torch.save(checkpoint, os.path.join(save_dir, 'ckpt.pt'))
+                        print("Checkpoint saved successfully.")
 
             if iter_num == 0 and eval_only:
                 break
@@ -251,6 +252,7 @@ class Train:
             iter_num += 1
             local_iter_num += 1
 
-config = GPTConfig(block_size=1024, vocab_size=50257, n_layer=12, n_head=12, n_embd=768, dropout=0.0, bias=True)
+#config = GPTConfig(block_size=1024, vocab_size=50257, n_layer=12, n_head=12, n_embd=768, dropout=0.0, bias=True)
+config = GPTConfig(block_size=1024, vocab_size=50257, n_layer=24, n_head=16, n_embd=1536, dropout=0.0, bias=True)
 train = Train(config=config, data_url="https://raw.githubusercontent.com/uwgraphics/VEP2_TCP_SimpleText/refs/heads/main/N3/N37535.txt", data_dir="datasets/simple_text")
-train.train(attn_type="mqa", resume=False)
+train.train(attn_type="mha", resume=False)

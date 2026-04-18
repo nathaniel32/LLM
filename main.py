@@ -202,4 +202,4 @@ else:
 """
 
 main_cache = Main(use_cache=True)
-y_cache, text_cache = main_cache.run(max_new_tokens=3500, attn_type='mqa')
+y_cache, text_cache = main_cache.run(max_new_tokens=1000, attn_type='mha')
