@@ -38,6 +38,8 @@ class Main:
         config_args['block_size'] = 1024 # always 1024 for GPT model checkpoints
         config_args['bias'] = True # always True for GPT model checkpoints
         config_args['dropout'] = 0.0
+
+        print(config_args)
         
         # create a from-scratch initialized minGPT model
         config = GPTConfig(**config_args)
