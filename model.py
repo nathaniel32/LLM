@@ -66,8 +66,9 @@ class MultiHeadAttention(nn.Module):
 
         self.cache = KVCache()
 
-        # 768/12 = 64 -> head_dim
         assert config.n_embd % config.n_head == 0
+
+        self.head_dim = config.n_embd // config.n_head # 768/12 = 64
         
         # key, query, value projections for all heads, but in a batch
         self.c_attn = nn.Linear(config.n_embd, 3 * config.n_embd, bias=config.bias) # w = torch.Size([2304, 768]), b = torch.Size([2304]) | torch.Size([768]) -> torch.Size([2304])
@@ -116,7 +117,7 @@ class MultiHeadAttention(nn.Module):
         T_full = k.size(2)
         t_start = T_full - T_q
 
-        att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(k.size(-1))) # torch.Size([1, 12, 7, 7])
+        att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(self.head_dim)) # torch.Size([1, 12, 7, 7])
         att = att.masked_fill(self.bias[:, :, t_start:t_start + T_q, :T_full] == 0, float('-inf'))
         #print(att.shape)
 
@@ -141,7 +142,6 @@ class MultiQueryAttention(nn.Module):
 
         self.cache = KVCache()
 
-        # 768/12 = 64 -> head_dim
         assert config.n_embd % config.n_head == 0
 
         self.head_dim = config.n_embd // config.n_head  # 64
@@ -189,7 +189,7 @@ class MultiQueryAttention(nn.Module):
         T_q    = q.size(2)
         t_start = T_full - T_q
 
-        att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(k.size(-1))) # torch.Size([1, 12, 7, 7])
+        att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(self.head_dim)) # torch.Size([1, 12, 7, 7])
         att = att.masked_fill(self.bias[:, :, t_start:t_start + T_q, :T_full] == 0, float('-inf'))
         #print(att.shape)
 
@@ -208,15 +208,14 @@ class MultiQueryAttention(nn.Module):
 
 class GroupedQueryAttention(nn.Module):
     
-    def __init__(self, config:GPTConfig):
+    def __init__(self, config:GPTConfig, n_kv_head=4):
         super().__init__()
 
         self.cache = KVCache()
 
-        # 768/12 = 64 -> head_dim
         assert config.n_embd % config.n_head == 0
         
-        self.n_kv_head = 4
+        self.n_kv_head = n_kv_head
         self.head_dim = config.n_embd // config.n_head # 64
         self.kv_repeat = config.n_head // self.n_kv_head # 3
 
@@ -263,7 +262,7 @@ class GroupedQueryAttention(nn.Module):
         T_q    = q.size(2)
         t_start = T_full - T_q
 
-        att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(k.size(-1))) # torch.Size([1, 12, 7, 7])
+        att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(self.head_dim)) # torch.Size([1, 12, 7, 7])
         att = att.masked_fill(self.bias[:, :, t_start:t_start + T_q, :T_full] == 0, float('-inf'))
         #print(att.shape)
 
