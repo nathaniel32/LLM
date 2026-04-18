@@ -43,7 +43,7 @@ class Main:
         
         # create a from-scratch initialized minGPT model
         config = GPTConfig(**config_args)
-        model = GPT(config)
+        model = GPT(config, attn_type="mha")
         sd = model.state_dict()
         sd_keys = sd.keys()
         sd_keys = [k for k in sd_keys if not k.endswith('.attn.bias')] # discard this mask / buffer, not a param
@@ -160,7 +160,7 @@ class Main:
 
         print("Warm-up done.\n")
 
-    def run(self, max_new_tokens=1000, temperature=0.8, top_k=200, start="the colors of the German flag are", attn_type="mqa"):
+    def run(self, max_new_tokens=1000, temperature=0.8, top_k=200, start="the colors of the German flag are", attn_type="mha"):
         model = self.from_pretrained('gpt2')
         #model = self.from_out(attn_type=attn_type)
         model.eval()
@@ -201,6 +201,6 @@ else:
     print("== NO ==") 
 """
 
-main_cache = Main(use_cache=True)
-y_cache, text_cache = main_cache.run(max_new_tokens=1000, attn_type='mha')
-print(text_cache)
+main = Main(use_cache=True)
+y, text = main.run(max_new_tokens=1000, attn_type='mha')
+print(text)
