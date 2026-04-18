@@ -144,9 +144,25 @@ class Main:
             torch.cuda.synchronize()
 
         print("Warm-up done.\n")
+
+    def from_out(self, out_dir="out"):
+        import os
+        # init from a model saved in a specific directory
+        ckpt_path = os.path.join(out_dir, 'ckpt.pt')
+        checkpoint = torch.load(ckpt_path, map_location=self.device)
+        gptconf = GPTConfig(**checkpoint['model_args'])
+        model = GPT(gptconf)
+        state_dict = checkpoint['model']
+        unwanted_prefix = '_orig_mod.'
+        for k,v in list(state_dict.items()):
+            if k.startswith(unwanted_prefix):
+                state_dict[k[len(unwanted_prefix):]] = state_dict.pop(k)
+        model.load_state_dict(state_dict)
+        return model
     
     def run(self, max_new_tokens=1000, temperature=0.8, top_k=200, start="the colors of the German flag are"):
-        model = self.from_pretrained('gpt2')
+        #model = self.from_pretrained('gpt2')
+        model = self.from_out()
         model.eval()
         model.to(self.device)
 
