@@ -201,7 +201,7 @@ else:
 
 import argparse
 parser = argparse.ArgumentParser()
-parser.add_argument("--use_cache", type=bool, default=True)
+parser.add_argument("--no-cache", action="store_false", dest="use_cache")
 parser.add_argument("--max_new_tokens", type=int, default=1000)
 parser.add_argument("--attn_type", type=str, default="mha")
 args = parser.parse_args()
