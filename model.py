@@ -70,7 +70,7 @@ class MultiHeadAttention(nn.Module):
         assert config.n_embd % config.n_head == 0
         
         # key, query, value projections for all heads, but in a batch
-        self.c_attn = nn.Linear(config.n_embd, 3 * config.n_embd, bias=config.bias) # w = torch.Size([2304, 768]), b = torch.Size([2304])
+        self.c_attn = nn.Linear(config.n_embd, 3 * config.n_embd, bias=config.bias) # w = torch.Size([2304, 768]), b = torch.Size([2304]) | torch.Size([768]) -> torch.Size([2304])
         
         # output projection -> mencampur dan mengintegrasikan informasi dari semua head
         self.c_proj = nn.Linear(config.n_embd, config.n_embd, bias=config.bias) # torch.Size([768, 768])
@@ -146,13 +146,13 @@ class MultiQueryAttention(nn.Module):
 
         self.head_dim = config.n_embd // config.n_head  # 64
 
-        # MQA: Q tetap full (n_head * head_dim), K & V hanya 1 head
-        self.q_proj = nn.Linear(config.n_embd, config.n_embd, bias=config.bias)           # [768, 768]
-        self.k_proj = nn.Linear(config.n_embd, self.head_dim, bias=config.bias)           # [768, 64]  ← 1 head saja
+        # MQA
+        self.q_proj = nn.Linear(config.n_embd, config.n_embd, bias=config.bias) # torch.Size([768]) -> torch.Size([768])
+        self.k_proj = nn.Linear(config.n_embd, self.head_dim, bias=config.bias) # torch.Size([768]) -> torch.Size([64]) ← 1 head
         self.v_proj = nn.Linear(config.n_embd, self.head_dim, bias=config.bias)
-                
-        # output projection -> mencampur dan mengintegrasikan informasi dari semua head
-        self.c_proj = nn.Linear(config.n_embd, config.n_embd, bias=config.bias) # torch.Size([768, 768])
+        
+        # output projection
+        self.c_proj = nn.Linear(config.n_embd, config.n_embd, bias=config.bias) # torch.Size([768]) -> torch.Size([768])
         
         # regularization
         self.attn_dropout = nn.Dropout(config.dropout)
