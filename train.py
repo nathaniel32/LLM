@@ -27,7 +27,9 @@ class Train:
         self.batch_size = 1
         self.learning_rate = 6e-4
         self.eval_iters = 200
-
+        self.headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        }
         self.prepare_dataset(data_url=data_url)
 
     def prepare_dataset(self, data_url):
@@ -39,7 +41,7 @@ class Train:
         input_file_path = os.path.join(self.data_dir, 'input.txt')
         if not os.path.exists(input_file_path):
             with open(input_file_path, 'w', encoding='utf-8') as f:
-                f.write(requests.get(data_url).text)
+                f.write(requests.get(data_url, headers=self.headers).text)
 
         with open(input_file_path, 'r', encoding='utf-8') as f:
             data = f.read()
@@ -263,5 +265,11 @@ config = GPTConfig(block_size=256, vocab_size=50257, n_layer=6, n_head=12, n_emb
 #config = GPTConfig(block_size=1024, vocab_size=50257, n_layer=12, n_head=12, n_embd=768, dropout=0.0, bias=True)
 #config = GPTConfig(block_size=1024, vocab_size=50257, n_layer=24, n_head=16, n_embd=1536, dropout=0.0, bias=True)
 
-train = Train(config=config, data_url="https://raw.githubusercontent.com/uwgraphics/VEP2_TCP_SimpleText/refs/heads/main/N3/N37535.txt", data_dir="datasets/simple_text")
+#data_url="https://raw.githubusercontent.com/uwgraphics/VEP2_TCP_SimpleText/refs/heads/main/N3/N37535.txt"
+#data_dir="datasets/simple_text"
+
+data_url = "https://id.wikipedia.org/w/index.php?title=Indonesia&action=raw"
+data_dir = "datasets/wiki_indo"
+
+train = Train(config=config, data_url=data_url, data_dir=data_dir)
 train.train(attn_type=args.attn_type, resume=args.resume)
