@@ -84,9 +84,9 @@ class MultiHeadAttention(nn.Module):
         self.dropout = config.dropout
                 
         # causal mask to ensure that attention is only applied to the left in the input sequence
-        #self.register_buffer("bias", torch.tril(torch.ones(config.block_size, config.block_size)).view(1, 1, config.block_size, config.block_size))
+        self.register_buffer("bias", torch.tril(torch.ones(config.block_size, config.block_size)).view(1, 1, config.block_size, config.block_size))
         
-        self.bias = torch.tril(torch.ones(config.block_size, config.block_size)).view(1, 1, config.block_size, config.block_size).to('cuda') # torch.Size([1, 1, 1024, 1024])
+        #self.bias = torch.tril(torch.ones(config.block_size, config.block_size)).view(1, 1, config.block_size, config.block_size).to('cuda') # torch.Size([1, 1, 1024, 1024])
         """ 
         [1,0,0,0]
         [1,1,0,0]
@@ -162,7 +162,7 @@ class MultiQueryAttention(nn.Module):
         self.dropout = config.dropout
         
         # causal mask to ensure that attention is only applied to the left in the input sequence
-        self.bias = torch.tril(torch.ones(config.block_size, config.block_size)).view(1, 1, config.block_size, config.block_size).to('cuda') # torch.Size([1, 1, 1024, 1024])
+        self.register_buffer("bias", torch.tril(torch.ones(config.block_size, config.block_size)).view(1, 1, config.block_size, config.block_size))
 
     def forward(self, x:torch.Tensor, use_cache: bool = False):
         B, T, C = x.size() # torch.Size([1, 7, 768])
@@ -238,7 +238,7 @@ class GroupedQueryAttention(nn.Module):
         self.dropout = config.dropout
         
         # causal mask to ensure that attention is only applied to the left in the input sequence
-        self.bias = torch.tril(torch.ones(config.block_size, config.block_size)).view(1, 1, config.block_size, config.block_size).to('cuda') # torch.Size([1, 1, 1024, 1024])
+        self.register_buffer("bias", torch.tril(torch.ones(config.block_size, config.block_size)).view(1, 1, config.block_size, config.block_size))
 
     def forward(self, x:torch.Tensor, use_cache: bool = False):
         B, T, C = x.size() # torch.Size([1, 7, 768])
