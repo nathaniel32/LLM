@@ -240,4 +240,4 @@ class Train:
             local_iter_num += 1
 
 train = Train()
-train.train(resume=True)
+train.train(resume=False)
