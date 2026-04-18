@@ -216,6 +216,9 @@ class GroupedQueryAttention(nn.Module):
         assert config.n_embd % config.n_head == 0
         
         self.n_kv_head = n_kv_head
+
+        assert config.n_head % self.n_kv_head == 0
+
         self.head_dim = config.n_embd // config.n_head # 64
         self.kv_repeat = config.n_head // self.n_kv_head # 3
 
