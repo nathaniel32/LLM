@@ -74,13 +74,13 @@ class Main:
 
         return model
     
-    def from_out(self, out_dir="out"):
+    def from_out(self, out_dir="out", attn_type="mha"):
         import os
         # init from a model saved in a specific directory
-        ckpt_path = os.path.join(out_dir, 'ckpt.pt')
+        ckpt_path = os.path.join(out_dir, attn_type, 'ckpt.pt')
         checkpoint = torch.load(ckpt_path, map_location=self.device)
         gptconf = GPTConfig(**checkpoint['model_args'])
-        model = GPT(gptconf)
+        model = GPT(gptconf, attn_type)
         state_dict = checkpoint['model']
         unwanted_prefix = '_orig_mod.'
         for k,v in list(state_dict.items()):
@@ -162,7 +162,7 @@ class Main:
 
     def run(self, max_new_tokens=1000, temperature=0.8, top_k=200, start="the colors of the German flag are"):
         #model = self.from_pretrained('gpt2')
-        model = self.from_out()
+        model = self.from_out(attn_type="mqa")
         model.eval()
         model.to(self.device)
 

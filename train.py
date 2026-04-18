@@ -22,8 +22,7 @@ class Train:
         self.ctx = nullcontext() if self.device == 'cpu' else torch.amp.autocast(device_type=self.device, dtype=ptdtype)
 
         self.out_dir = 'out'
-        os.makedirs(self.out_dir, exist_ok=True)
-
+        self.attn_type="mha"
         self.data_dir = "datasets/shakespeare"
         self.config = GPTConfig(block_size=1024, vocab_size=50257, n_layer=12, n_head=12, n_embd=768, dropout=0.0, bias=True)
         self.batch_size = 1
@@ -78,9 +77,14 @@ class Train:
         beta1 = 0.9
         beta2 = 0.95
 
+        ckpt_path = os.path.join(self.out_dir, 'ckpt.pt')
+        if not os.path.exists(ckpt_path):
+            print("Checkpoint not found!")
+            resume = False
+
         if resume:
             print(f"Resuming training from {self.out_dir}")
-            ckpt_path = os.path.join(self.out_dir, 'ckpt.pt')
+            
             checkpoint = torch.load(ckpt_path, map_location=self.device)
             checkpoint_model_args = checkpoint['model_args']
             self.config = GPTConfig(
@@ -95,7 +99,7 @@ class Train:
         else:
             print("Initializing a new model from scratch")
         
-        model = GPT(self.config)
+        model = GPT(self.config, self.attn_type)
         model.to(self.device)
         optimizer = model.configure_optimizers(weight_decay, self.learning_rate, (beta1, beta2), self.device)
         
@@ -149,7 +153,7 @@ class Train:
         model.train()
         return out
     
-    def train(self, resume=False):
+    def train(self, resume=True):
         model, optimizer, iter_num, best_val_loss = self.get_model(resume=resume)
 
         X, Y = self.get_batch('train')
@@ -194,8 +198,11 @@ class Train:
                             'iter_num': iter_num,
                             'best_val_loss': best_val_loss
                         }
-                        print(f"saving checkpoint to {self.out_dir}")
-                        torch.save(checkpoint, os.path.join(self.out_dir, 'ckpt.pt'))
+                        save_dir = os.path.join(self.out_dir, self.attn_type)
+                        print(f"saving checkpoint to {save_dir}")
+                        
+                        os.makedirs(save_dir, exist_ok=True)
+                        torch.save(checkpoint, os.path.join(save_dir, 'ckpt.pt'))
 
             if iter_num == 0 and eval_only:
                 break
@@ -240,4 +247,4 @@ class Train:
             local_iter_num += 1
 
 train = Train()
-train.train(resume=False)
+train.train()

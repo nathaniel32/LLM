@@ -230,12 +230,17 @@ class MLP(nn.Module):
 class Block(nn.Module):
     "attention + MLP + LayerNorm"
 
-    def __init__(self, config:GPTConfig):
+    def __init__(self, config:GPTConfig, attn_type="mha"):
         super().__init__()
         self.ln_1 = LayerNorm(config.n_embd, bias=config.bias)
-        #self.attn = MultiHeadAttention(config)
-        self.attn = MultiQueryAttention(config)
-        #self.attn = GroupedQueryAttention(config)
+        
+        if attn_type == "mha":
+            self.attn = MultiHeadAttention(config)
+        elif attn_type == "mqa":
+            self.attn = MultiQueryAttention(config)
+        elif attn_type == "gqa":
+            self.attn = GroupedQueryAttention(config)
+        
         self.ln_2 = LayerNorm(config.n_embd, bias=config.bias)
         self.mlp = MLP(config)
 
@@ -247,7 +252,7 @@ class Block(nn.Module):
 class GPT(nn.Module):
     "Embedding → Block → Block → Block → lm_head"
 
-    def __init__(self, config:GPTConfig):
+    def __init__(self, config:GPTConfig, attn_type="mha"):
         super().__init__()
         assert config.vocab_size is not None
         assert config.block_size is not None
@@ -257,7 +262,7 @@ class GPT(nn.Module):
             wte = nn.Embedding(config.vocab_size, config.n_embd), # Weight Token Embedding -> torch.Size([50257, 768])
             wpe = nn.Embedding(config.block_size, config.n_embd), # Weight Position Embedding -> torch.Size([1024, 768])
             drop = nn.Dropout(config.dropout),
-            h = nn.ModuleList([Block(config) for _ in range(config.n_layer)]),
+            h = nn.ModuleList([Block(config, attn_type) for _ in range(config.n_layer)]),
             ln_f = LayerNorm(config.n_embd, bias=config.bias),
         ))
         self.lm_head = nn.Linear(config.n_embd, config.vocab_size, bias=False) # torch.Size([50257, 768]) | 768 input features & 50257 output features
