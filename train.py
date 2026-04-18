@@ -9,7 +9,7 @@ import math
 import time
 
 class Train:
-    def __init__(self):
+    def __init__(self, config:GPTConfig, data_url="https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt", data_dir="datasets/shakespeare"):
         seed = 1337
         torch.manual_seed(seed)
         torch.cuda.manual_seed(seed)
@@ -22,16 +22,21 @@ class Train:
         self.ctx = nullcontext() if self.device == 'cpu' else torch.amp.autocast(device_type=self.device, dtype=ptdtype)
 
         self.out_dir = 'out'
-        self.attn_type="mha"
-        self.data_dir = "datasets/shakespeare"
-        self.config = GPTConfig(block_size=1024, vocab_size=50257, n_layer=12, n_head=12, n_embd=768, dropout=0.0, bias=True)
+        self.data_dir = data_dir
+        self.config = config
         self.batch_size = 1
         self.learning_rate = 6e-4
         self.eval_iters = 200
 
-    def prepare_dataset(self, data_url="https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt", data_dir="datasets/shakespeare"):
-        os.makedirs(data_dir, exist_ok=True)
-        input_file_path = os.path.join(data_dir, 'input.txt')
+        self.prepare_dataset(data_url=data_url)
+
+    def prepare_dataset(self, data_url):
+        if os.path.exists(os.path.join(self.data_dir, 'train.bin')):
+            print("Datasets found!")
+            return
+        
+        os.makedirs(self.data_dir, exist_ok=True)
+        input_file_path = os.path.join(self.data_dir, 'input.txt')
         if not os.path.exists(input_file_path):
             with open(input_file_path, 'w', encoding='utf-8') as f:
                 f.write(requests.get(data_url).text)
@@ -53,8 +58,8 @@ class Train:
         train_ids = np.array(train_ids, dtype=np.uint16)
         val_ids = np.array(val_ids, dtype=np.uint16)
 
-        train_ids.tofile(os.path.join(data_dir, 'train.bin'))
-        val_ids.tofile(os.path.join(data_dir, 'val.bin'))
+        train_ids.tofile(os.path.join(self.data_dir, 'train.bin'))
+        val_ids.tofile(os.path.join(self.data_dir, 'val.bin'))
 
     def get_batch(self, split):
         # np.memmap every batch to avoid a memory leak
@@ -72,7 +77,7 @@ class Train:
             x, y = x.to(self.device), y.to(self.device)
         return x, y
     
-    def get_model(self, resume=False):
+    def get_model(self, attn_type="mha", resume=False):
         weight_decay = 1e-1
         beta1 = 0.9
         beta2 = 0.95
@@ -99,7 +104,7 @@ class Train:
         else:
             print("Initializing a new model from scratch")
         
-        model = GPT(self.config, self.attn_type)
+        model = GPT(self.config, attn_type)
         model.to(self.device)
         optimizer = model.configure_optimizers(weight_decay, self.learning_rate, (beta1, beta2), self.device)
         
@@ -153,8 +158,8 @@ class Train:
         model.train()
         return out
     
-    def train(self, resume=True):
-        model, optimizer, iter_num, best_val_loss = self.get_model(resume=resume)
+    def train(self, attn_type="mha", resume=True):
+        model, optimizer, iter_num, best_val_loss = self.get_model(attn_type=attn_type, resume=resume)
 
         X, Y = self.get_batch('train')
         
@@ -198,7 +203,7 @@ class Train:
                             'iter_num': iter_num,
                             'best_val_loss': best_val_loss
                         }
-                        save_dir = os.path.join(self.out_dir, self.attn_type)
+                        save_dir = os.path.join(self.out_dir, attn_type)
                         print(f"saving checkpoint to {save_dir}")
                         
                         os.makedirs(save_dir, exist_ok=True)
@@ -246,5 +251,6 @@ class Train:
             iter_num += 1
             local_iter_num += 1
 
-train = Train()
-train.train()
+config = GPTConfig(block_size=1024, vocab_size=50257, n_layer=12, n_head=12, n_embd=768, dropout=0.0, bias=True)
+train = Train(config=config, data_url="https://raw.githubusercontent.com/uwgraphics/VEP2_TCP_SimpleText/refs/heads/main/N3/N37535.txt", data_dir="datasets/simple_text")
+train.train(attn_type="mqa", resume=False)
