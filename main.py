@@ -161,8 +161,8 @@ class Main:
         print("Warm-up done.\n")
 
     def run(self, max_new_tokens=1000, temperature=0.8, top_k=200, start="the colors of the German flag are", attn_type="mha"):
-        model = self.from_pretrained('gpt2')
-        #model = self.from_out(attn_type=attn_type)
+        #model = self.from_pretrained('gpt2')
+        model = self.from_out(attn_type=attn_type)
         model.eval()
         model.to(self.device)
 
@@ -199,6 +199,16 @@ else:
     print("== NO ==")
 """
 
-main = Main(use_cache=True)
-text = main.run(max_new_tokens=1000, attn_type='mha')
+import argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--use_cache", action="store_true")
+parser.add_argument("--max_new_tokens", type=int, default=1000)
+parser.add_argument("--attn_type", type=str, default="mha")
+args = parser.parse_args()
+
+print(vars(args))
+
+main = Main(use_cache=args.use_cache)
+text = main.run(max_new_tokens=args.max_new_tokens, attn_type=args.attn_type)
 print(text)
