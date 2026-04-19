@@ -126,12 +126,12 @@ class CausalSelfAttention(nn.Module):
         v = v.repeat_interleave(self.kv_repeat, dim=1)
 
         # Attention
-        T_full = k.size(2)
-        T_q    = q.size(2)
-        t_start = T_full - T_q
-
         att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(self.head_dim)) # torch.Size([1, 12, 7, 7])
-        att = att.masked_fill(self.bias[:, :, t_start:t_start + T_q, :T_full] == 0, float('-inf'))
+
+        if T > 1:
+            T_full = k.size(2)
+            t_start = T_full - T
+            att = att.masked_fill(self.bias[:, :, t_start:t_start + T, :T_full] == 0, float('-inf'))
         #print(att.shape)
 
         att = F.softmax(att, dim=-1) # torch.Size([1, 12, 7, 7])
@@ -139,7 +139,7 @@ class CausalSelfAttention(nn.Module):
         y = att @ v # (B, nh, T, T) x (B, nh, T, hs) -> (B, nh, T, hs) | torch.Size([1, 12, 7, 7]) * torch.Size([1, 12, 7, 64]) -> torch.Size([1, 12, 7, 64])
         
         # re-assemble all head outputs side by side
-        y = y.transpose(1, 2).contiguous().view(B, T_q, C)
+        y = y.transpose(1, 2).contiguous().view(B, T, C)
         # 1. torch.Size([1, 12, 7, 64]) -> torch.Size([1, 7, 12, 64])
         # 2. torch.Size([1, 7, 12, 64]) -> torch.Size([1, 7, 768])
 
