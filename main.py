@@ -160,7 +160,7 @@ class Main:
 
         print("Warm-up done.\n")
 
-    def run(self, max_new_tokens=1000, temperature=0.8, top_k=200, start="the colors of the German flag are", attn_type="mha"):
+    def run(self, max_new_tokens=1000, temperature=0.8, top_k=200, start="\n", attn_type="mha"):
         #model = self.from_pretrained('gpt2')
         model = self.from_out(attn_type=attn_type)
         model.eval()
@@ -204,9 +204,10 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--no-cache", action="store_false", dest="use_cache")
 parser.add_argument("--max_new_tokens", type=int, default=1000)
 parser.add_argument("--attn_type", type=str, default="mha")
+parser.add_argument("--start", type=str, default="the colors of the German flag are")
 args = parser.parse_args()
 print(vars(args))
 
 main = Main(use_cache=args.use_cache)
-text = main.run(max_new_tokens=args.max_new_tokens, attn_type=args.attn_type)
+text = main.run(max_new_tokens=args.max_new_tokens, attn_type=args.attn_type, start=args.start)
 print(text)

@@ -268,8 +268,11 @@ config = GPTConfig(block_size=256, vocab_size=50257, n_layer=6, n_head=12, n_emb
 #data_url="https://raw.githubusercontent.com/uwgraphics/VEP2_TCP_SimpleText/refs/heads/main/N3/N37535.txt"
 #data_dir="datasets/simple_text"
 
-data_url = "https://id.wikipedia.org/w/index.php?title=Indonesia&action=raw"
-data_dir = "datasets/wiki_indo"
+#data_url = "https://id.wikipedia.org/w/index.php?title=Indonesia&action=raw"
+#data_dir = "datasets/wiki_indo"
+
+data_url = "https://id.wikipedia.org/w/api.php?action=query&format=json&prop=extracts&titles=Indonesia&explaintext=1"
+data_dir = "datasets/wiki_indo_json"
 
 train = Train(config=config, data_url=data_url, data_dir=data_dir)
 train.train(attn_type=args.attn_type, resume=args.resume)
