@@ -66,82 +66,6 @@ class LayerNorm(nn.Module):
         #return xhat * self.weight + self.bias
 
         return F.layer_norm(input, self.weight.shape, self.weight, self.bias, 1e-5)
-    
-class CausalSelfAttentionGPT(nn.Module):
-
-    def __init__(self, config:ModelConfig):
-        super().__init__()
-
-        self.cache = KVCache()
-
-        assert config.n_embd % config.n_head == 0
-
-        self.head_dim = config.n_embd // config.n_head # 768/12 = 64
-        
-        # key, query, value projections for all heads, but in a batch
-        self.c_attn = nn.Linear(config.n_embd, 3 * config.n_embd, bias=config.bias) # w = torch.Size([2304, 768]), b = torch.Size([2304]) | torch.Size([768]) -> torch.Size([2304])
-        
-        # output projection -> mencampur dan mengintegrasikan informasi dari semua head
-        self.c_proj = nn.Linear(config.n_embd, config.n_embd, bias=config.bias) # torch.Size([768, 768])
-        
-        # regularization
-        self.attn_dropout = nn.Dropout(config.dropout)
-        self.resid_dropout = nn.Dropout(config.dropout)
-        self.n_head = config.n_head
-        self.n_embd = config.n_embd
-        self.dropout = config.dropout
-                
-        # causal mask to ensure that attention is only applied to the left in the input sequence
-        self.register_buffer("bias", torch.tril(torch.ones(config.block_size, config.block_size)).view(1, 1, config.block_size, config.block_size))
-        
-        #self.bias = torch.tril(torch.ones(config.block_size, config.block_size)).view(1, 1, config.block_size, config.block_size).to('cuda') # torch.Size([1, 1, 1024, 1024])
-        """ 
-        [1,0,0,0]
-        [1,1,0,0]
-        [1,1,1,0]
-        [1,1,1,1] 
-        """
-
-    def forward(self, x:torch.Tensor, use_cache: bool = False):
-        B, T, C = x.size() # batch size, sequence length, embedding dimensionality (n_embd) | torch.Size([1, 7, 768])
-
-        # calculate query, key, values for all heads in batch and move head forward to be the batch dim
-        x = self.c_attn(x)
-        q, k, v  = x.split(self.n_embd, dim=2)
-        # 1. torch.Size([1, 7, 768]) -> torch.Size([1, 7, 2304])
-        # 2. torch.Size([1, 7, 2304]) -> [torch.Size([1, 7, 768]), torch.Size([1, 7, 768]), torch.Size([1, 7, 768])]
-
-        # Multi-Head-Attention
-        k = k.view(B, T, self.n_head, C // self.n_head).transpose(1, 2) # (B, nh, T, hs) -> torch.Size([1, 7, 12, 64]) -> torch.Size([1, 12, 7, 64])
-        q = q.view(B, T, self.n_head, C // self.n_head).transpose(1, 2) # (B, nh, T, hs) -> torch.Size([1, 12, 7, 64])
-        v = v.view(B, T, self.n_head, C // self.n_head).transpose(1, 2) # (B, nh, T, hs) -> torch.Size([1, 12, 7, 64])
-
-        if use_cache:
-            k, v = self.cache.update(k, v, self.bias.size(-1))
-
-        # causal self-attention; Self-attend: (B, nh, T, hs) x (B, nh, hs, T) -> (B, nh, T, T)
-        # manual implementation of attention
-        T_q    = q.size(2)
-        T_full = k.size(2)
-        t_start = T_full - T_q
-
-        att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(self.head_dim)) # torch.Size([1, 12, 7, 7])
-        att = att.masked_fill(self.bias[:, :, t_start:t_start + T_q, :T_full] == 0, float('-inf'))
-        #print(att.shape)
-
-        att = F.softmax(att, dim=-1) # torch.Size([1, 12, 7, 7])
-        att = self.attn_dropout(att)
-        y = att @ v # (B, nh, T, T) x (B, nh, T, hs) -> (B, nh, T, hs)
-        # torch.Size([1, 12, 7, 7]) * torch.Size([1, 12, 7, 64]) -> torch.Size([1, 12, 7, 64])
-        
-        # re-assemble all head outputs side by side
-        y = y.transpose(1, 2).contiguous().view(B, T_q, C)
-        # 1. torch.Size([1, 12, 7, 64]) -> torch.Size([1, 7, 12, 64])
-        # 2. torch.Size([1, 7, 12, 64]) -> torch.Size([1, 7, 768])
-
-        # output projection
-        y = self.resid_dropout(self.c_proj(y)) # torch.Size([1, 7, 768])
-        return y
 
 class CausalSelfAttention(nn.Module):
     
@@ -158,10 +82,9 @@ class CausalSelfAttention(nn.Module):
 
         self.head_dim = config.n_embd // config.n_head # 64
         self.kv_repeat = config.n_head // self.n_kv_head # 3
+        self.kv_dim = self.n_kv_head * self.head_dim
 
-        self.q_proj = nn.Linear(config.n_embd, config.n_embd, bias=config.bias) # torch.Size([768]) -> torch.Size([768])
-        self.k_proj = nn.Linear(config.n_embd, self.n_kv_head * self.head_dim, bias=config.bias) # torch.Size([768]) -> torch.Size([256]) ← 1 group
-        self.v_proj = nn.Linear(config.n_embd, self.n_kv_head * self.head_dim, bias=config.bias)
+        self.c_attn = nn.Linear(config.n_embd, config.n_embd + 2 * self.kv_dim, bias=config.bias)
         
         # output projection
         self.c_proj = nn.Linear(config.n_embd, config.n_embd, bias=config.bias) # torch.Size([768]) -> torch.Size([768])
@@ -176,13 +99,19 @@ class CausalSelfAttention(nn.Module):
         # causal mask to ensure that attention is only applied to the left in the input sequence
         self.register_buffer("bias", torch.tril(torch.ones(config.block_size, config.block_size)).view(1, 1, config.block_size, config.block_size))
 
+        #self.bias = torch.tril(torch.ones(config.block_size, config.block_size)).view(1, 1, config.block_size, config.block_size).to('cuda') # torch.Size([1, 1, 1024, 1024])
+        """
+        [1,0,0,0]
+        [1,1,0,0]
+        [1,1,1,0]
+        [1,1,1,1] 
+        """
+
     def forward(self, x:torch.Tensor, use_cache: bool = False):
         B, T, C = x.size() # torch.Size([1, 7, 768])
 
-        # Projections
-        q = self.q_proj(x)  # (B, T, n_embd)
-        k = self.k_proj(x)  # (B, T, n_kv_head * head_dim)
-        v = self.v_proj(x)  # (B, T, n_kv_head * head_dim)
+        combined = self.c_attn(x)
+        q, k, v = combined.split([C, self.kv_dim, self.kv_dim], dim=2)
 
         # Reshape
         q = q.view(B, T, self.n_head, self.head_dim).transpose(1, 2) # (B, nh, T, hs) -> torch.Size([1, 12, 7, 64])
@@ -241,14 +170,14 @@ class Block(nn.Module):
         super().__init__()
         self.ln_1 = LayerNorm(config.n_embd, bias=config.bias)
         
-        if attn_type == "mha_gpt":
-            self.attn = CausalSelfAttentionGPT(config)
-        elif attn_type == "mha":
-            self.attn = CausalSelfAttention(config, n_kv_head=config.n_head)
+        if attn_type == "mha":
+            n_kv_head = config.n_head
         elif attn_type == "gqa":
-            self.attn = CausalSelfAttention(config, n_kv_head=config.gqa_kv_head)
+            n_kv_head=config.gqa_kv_head
         elif attn_type == "mqa":
-            self.attn = CausalSelfAttention(config, n_kv_head=1)
+            n_kv_head=1
+        
+        self.attn = CausalSelfAttention(config, n_kv_head=n_kv_head)
         
         self.ln_2 = LayerNorm(config.n_embd, bias=config.bias)
         self.mlp = MLP(config)

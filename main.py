@@ -43,7 +43,7 @@ class Main:
         
         # create a from-scratch initialized minGPT model
         config = ModelConfig(**config_args)
-        model = GPT(config, attn_type="mha_gpt")
+        model = GPT(config, attn_type="mha")
         sd = model.state_dict()
         sd_keys = sd.keys()
         sd_keys = [k for k in sd_keys if not k.endswith('.attn.bias')] # discard this mask / buffer, not a param
