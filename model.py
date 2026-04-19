@@ -175,7 +175,7 @@ class Block(nn.Module):
         elif attn_type == "gqa":
             n_kv_head=config.gqa_kv_head
         elif attn_type == "mqa":
-            n_kv_head=1
+            n_kv_head = 1
         
         self.attn = CausalSelfAttention(config, n_kv_head=n_kv_head)
         
