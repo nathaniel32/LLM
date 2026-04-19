@@ -206,6 +206,7 @@ text, y = main.run(args.max_new_tokens, args.model_type, args.attn_type, args.st
 
 print(text)
 
+"""
 main_1 = Main(use_cache=not args.use_cache)
 text_1, y_1 = main_1.run(args.max_new_tokens, args.model_type, args.attn_type, args.start)
 
@@ -213,3 +214,4 @@ if torch.equal(y, y_1):
     print("== OK ==")
 else:
     print("== NO ==")
+"""
