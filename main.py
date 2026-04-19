@@ -126,6 +126,8 @@ class Main:
             # sample from the distribution
             idx_next = torch.multinomial(probs, num_samples=1)
             #idx_next = torch.argmax(probs, dim=-1, keepdim=True)
+
+            self.benchmark.step()
             
             if idx_next.item() == eot_token and stop_token:
                 break
@@ -133,11 +135,13 @@ class Main:
             # append sampled index to the running sequence and continue
             idx = torch.cat((idx, idx_next), dim=1)
 
-            self.benchmark.step()
-
             if self.stream:
                 text = enc.decode(idx[0].tolist())
                 print('\033[u\033[J' + text, end='', flush=True)
+
+            if model.config.block_size == idx.size(-1):
+                print("Block full!")
+                break
 
         self.benchmark.stop()
 
