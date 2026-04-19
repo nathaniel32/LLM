@@ -208,7 +208,7 @@ else:
 import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("--no-cache", action="store_false", dest="use_cache")
-parser.add_argument("--max_new_tokens", type=int, default=1000)
+parser.add_argument("--max_new_tokens", type=int, default=100000)
 parser.add_argument("--model_type", type=str, default="small")
 parser.add_argument("--attn_type", type=str, default="mha")
 parser.add_argument("--start", type=str, default="the colors of the German flag are")
