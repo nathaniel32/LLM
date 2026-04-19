@@ -166,9 +166,8 @@ class Main:
 
         print("Warm-up done.\n")
 
-    def run(self, max_new_tokens, model_type, attn_type, start, temperature=0.8, top_k=200):
-        #model = self.from_pretrained('gpt2')
-        model = self.from_out(model_type, attn_type)
+    def run(self, max_new_tokens, model_type, attn_type, start, temperature=0.8, top_k=200, pretrained=None):
+        model = self.from_out(model_type, attn_type) if pretrained is None else self.from_pretrained(pretrained)
         model.eval()
         model.to(self.device)
 
@@ -198,20 +197,21 @@ parser.add_argument("--max_new_tokens", type=int, default=100000)
 parser.add_argument("--model_type", type=str, default="small")
 parser.add_argument("--attn_type", type=str, default="mha")
 parser.add_argument("--start", type=str, default="the colors of the German flag are")
+parser.add_argument("--compare", action="store_true")
+parser.add_argument("--pretrained", type=str)
 args = parser.parse_args()
 print(vars(args))
 
 main = Main(use_cache=args.use_cache)
-text, y = main.run(args.max_new_tokens, args.model_type, args.attn_type, args.start)
+text, y = main.run(args.max_new_tokens, args.model_type, args.attn_type, args.start, pretrained=args.pretrained)
 
 print(text)
 
-"""
-main_1 = Main(use_cache=not args.use_cache)
-text_1, y_1 = main_1.run(args.max_new_tokens, args.model_type, args.attn_type, args.start)
+if args.compare:
+    main_1 = Main(use_cache=not args.use_cache)
+    text_1, y_1 = main_1.run(args.max_new_tokens, args.model_type, args.attn_type, args.start, pretrained=args.pretrained)
 
-if torch.equal(y, y_1):
-    print("== OK ==")
-else:
-    print("== NO ==")
-"""
+    if torch.equal(y, y_1):
+        print("== OK ==")
+    else:
+        print("== NO ==")
