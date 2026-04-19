@@ -1,7 +1,7 @@
 import torch
 from torch.nn import functional as F
 from contextlib import nullcontext
-from model import GPT, GPTConfig
+from model import GPT, ModelConfig
 import tiktoken
 from benchmark import Benchmark
 
@@ -42,7 +42,7 @@ class Main:
         print(config_args)
         
         # create a from-scratch initialized minGPT model
-        config = GPTConfig(**config_args)
+        config = ModelConfig(**config_args)
         model = GPT(config, attn_type="mha_gpt")
         sd = model.state_dict()
         sd_keys = sd.keys()
@@ -81,7 +81,7 @@ class Main:
         ckpt_path = os.path.join(out_dir, 'ckpt.pt')
         
         checkpoint = torch.load(ckpt_path, map_location=self.device)
-        gptconf = GPTConfig(**checkpoint['model_args'])
+        gptconf = ModelConfig(**checkpoint['model_args'])
         model = GPT(gptconf, attn_type)
         state_dict = checkpoint['model']
         unwanted_prefix = '_orig_mod.'

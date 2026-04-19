@@ -1,12 +1,12 @@
 import math
 from dataclasses import dataclass
-
+from typing import Optional
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
 
 @dataclass
-class GPTConfig:
+class ModelConfig:
     block_size: int
     vocab_size: int
     n_layer: int
@@ -14,16 +14,18 @@ class GPTConfig:
     n_embd: int
     dropout: float
     bias: bool
+    gqa_kv_head: Optional[int] = None
 
     def to_dict(self):
         return dict(
+            block_size=self.block_size,
+            vocab_size=self.vocab_size,
             n_layer=self.n_layer,
             n_head=self.n_head,
             n_embd=self.n_embd,
-            block_size=self.block_size,
+            dropout=self.dropout,
             bias=self.bias,
-            vocab_size=self.vocab_size,
-            dropout=self.dropout
+            gqa_kv_head=self.gqa_kv_head
         )
 
 class KVCache:
@@ -67,7 +69,7 @@ class LayerNorm(nn.Module):
     
 class CausalSelfAttentionGPT(nn.Module):
 
-    def __init__(self, config:GPTConfig):
+    def __init__(self, config:ModelConfig):
         super().__init__()
 
         self.cache = KVCache()
@@ -143,7 +145,7 @@ class CausalSelfAttentionGPT(nn.Module):
 
 class CausalSelfAttention(nn.Module):
     
-    def __init__(self, config:GPTConfig, n_kv_head):
+    def __init__(self, config:ModelConfig, n_kv_head):
         super().__init__()
 
         self.cache = KVCache()
@@ -218,7 +220,7 @@ class CausalSelfAttention(nn.Module):
 
 class MLP(nn.Module):
 
-    def __init__(self, config:GPTConfig):
+    def __init__(self, config:ModelConfig):
         super().__init__()
         self.c_fc    = nn.Linear(config.n_embd, 4 * config.n_embd, bias=config.bias)
         self.gelu    = nn.GELU()
@@ -235,7 +237,7 @@ class MLP(nn.Module):
 class Block(nn.Module):
     "attention + MLP + LayerNorm"
 
-    def __init__(self, config:GPTConfig, attn_type):
+    def __init__(self, config:ModelConfig, attn_type):
         super().__init__()
         self.ln_1 = LayerNorm(config.n_embd, bias=config.bias)
         
@@ -244,7 +246,7 @@ class Block(nn.Module):
         elif attn_type == "mha":
             self.attn = CausalSelfAttention(config, n_kv_head=config.n_head)
         elif attn_type == "gqa":
-            self.attn = CausalSelfAttention(config, n_kv_head=4)
+            self.attn = CausalSelfAttention(config, n_kv_head=config.gqa_kv_head)
         elif attn_type == "mqa":
             self.attn = CausalSelfAttention(config, n_kv_head=1)
         
@@ -259,7 +261,7 @@ class Block(nn.Module):
 class GPT(nn.Module):
     "Embedding → Block → Block → Block → lm_head"
 
-    def __init__(self, config:GPTConfig, attn_type):
+    def __init__(self, config:ModelConfig, attn_type):
         super().__init__()
         self.config = config
 

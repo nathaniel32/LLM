@@ -4,7 +4,7 @@ import tiktoken
 import numpy as np
 import torch
 from contextlib import nullcontext
-from model import GPTConfig, GPT
+from model import ModelConfig, GPT
 import math
 import time
 import env
@@ -27,7 +27,7 @@ class Train:
         self.out_dir = os.path.join('out', model_type, attn_type)
         self.data_dir = os.path.join('datasets', dataset_type)
         
-        self.config = GPTConfig(**env.model_configs[model_type])
+        self.config = ModelConfig(**env.model_configs[model_type])
         
         self.batch_size = 1
         self.learning_rate = 6e-4
@@ -100,14 +100,15 @@ class Train:
             
             checkpoint = torch.load(ckpt_path, map_location=self.device)
             checkpoint_model_args = checkpoint['model_args']
-            self.config = GPTConfig(
+            self.config = ModelConfig(
                 block_size=checkpoint_model_args["block_size"],
                 vocab_size=checkpoint_model_args["vocab_size"],
                 n_layer=checkpoint_model_args["n_layer"],
                 n_head=checkpoint_model_args["n_head"],
                 n_embd=checkpoint_model_args["n_embd"],
                 dropout=checkpoint_model_args["dropout"],
-                bias=checkpoint_model_args["bias"])
+                bias=checkpoint_model_args["bias"],
+                gqa_kv_head=checkpoint_model_args["gqa_kv_head"])
             state_dict = checkpoint['model']
         else:
             print("Initializing a new model from scratch")
