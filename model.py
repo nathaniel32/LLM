@@ -245,7 +245,7 @@ class Block(nn.Module):
             self.attn = CausalSelfAttention(config, n_kv_head=config.n_head)
         elif attn_type == "gqa":
             self.attn = CausalSelfAttention(config, n_kv_head=4)
-        elif attn_type == "gqa":
+        elif attn_type == "mqa":
             self.attn = CausalSelfAttention(config, n_kv_head=1)
         
         self.ln_2 = LayerNorm(config.n_embd, bias=config.bias)
