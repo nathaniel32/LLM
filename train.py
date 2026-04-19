@@ -7,9 +7,10 @@ from contextlib import nullcontext
 from model import GPTConfig, GPT
 import math
 import time
+import env
 
 class Train:
-    def __init__(self, config:GPTConfig, data_url="https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt", data_dir="datasets/shakespeare"):
+    def __init__(self, model_type, attn_type, data_url="https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt", data_dir="datasets/shakespeare"):
         seed = 1337
         torch.manual_seed(seed)
         torch.cuda.manual_seed(seed)
@@ -21,9 +22,11 @@ class Train:
         ptdtype = {'float32': torch.float32, 'bfloat16': torch.bfloat16, 'float16': torch.float16}[self.dtype]
         self.ctx = nullcontext() if self.device == 'cpu' else torch.amp.autocast(device_type=self.device, dtype=ptdtype)
 
-        self.out_dir = 'out'
+        self.out_dir = os.path.join('os', model_type, attn_type)
         self.data_dir = data_dir
-        self.config = config
+        self.model_type = model_type
+        self.attn_type = attn_type
+        self.config = GPTConfig(**env.configs[model_type])
         self.batch_size = 1
         self.learning_rate = 6e-4
         self.eval_iters = 200
@@ -79,12 +82,12 @@ class Train:
             x, y = x.to(self.device), y.to(self.device)
         return x, y
     
-    def get_model(self, attn_type="mha", resume=False):
+    def get_model(self, resume=False):
         weight_decay = 1e-1
         beta1 = 0.9
         beta2 = 0.95
 
-        ckpt_path = os.path.join(self.out_dir, attn_type, 'ckpt.pt')
+        ckpt_path = os.path.join(self.out_dir, 'ckpt.pt')
         if not os.path.exists(ckpt_path):
             print("Checkpoint not found!")
             resume = False
@@ -106,7 +109,7 @@ class Train:
         else:
             print("Initializing a new model from scratch")
         
-        model = GPT(self.config, attn_type)
+        model = GPT(self.config, self.attn_type)
         model.to(self.device)
         optimizer = model.configure_optimizers(weight_decay, self.learning_rate, (beta1, beta2), self.device)
         
@@ -160,8 +163,8 @@ class Train:
         model.train()
         return out
     
-    def train(self, attn_type="mha", resume=True):
-        model, optimizer, iter_num, best_val_loss = self.get_model(attn_type=attn_type, resume=resume)
+    def train(self, resume=True):
+        model, optimizer, iter_num, best_val_loss = self.get_model(resume=resume)
 
         X, Y = self.get_batch('train')
         
@@ -205,7 +208,7 @@ class Train:
                             'iter_num': iter_num,
                             'best_val_loss': best_val_loss
                         }
-                        save_dir = os.path.join(self.out_dir, attn_type)
+                        save_dir = os.path.join(self.out_dir)
                         print(f"saving checkpoint to {save_dir}")
                         
                         os.makedirs(save_dir, exist_ok=True)
@@ -261,10 +264,6 @@ parser.add_argument("--no-resume", action="store_false", dest="resume", default=
 args = parser.parse_args()
 print(vars(args))
 
-config = GPTConfig(block_size=256, vocab_size=50257, n_layer=6, n_head=12, n_embd=384, dropout=0.0, bias=True)
-#config = GPTConfig(block_size=1024, vocab_size=50257, n_layer=12, n_head=12, n_embd=768, dropout=0.0, bias=True)
-#config = GPTConfig(block_size=1024, vocab_size=50257, n_layer=24, n_head=16, n_embd=1536, dropout=0.0, bias=True)
-
 #data_url="https://raw.githubusercontent.com/uwgraphics/VEP2_TCP_SimpleText/refs/heads/main/N3/N37535.txt"
 #data_dir="datasets/simple_text"
 
@@ -274,5 +273,5 @@ config = GPTConfig(block_size=256, vocab_size=50257, n_layer=6, n_head=12, n_emb
 data_url = "https://id.wikipedia.org/w/api.php?action=query&format=json&prop=extracts&titles=Indonesia&explaintext=1"
 data_dir = "datasets/wiki_indo_json"
 
-train = Train(config=config, data_url=data_url, data_dir=data_dir)
-train.train(attn_type=args.attn_type, resume=args.resume)
+train = Train(model_type="medium", attn_type=args.attn_type, data_url=data_url, data_dir=data_dir)
+train.train(resume=args.resume)
