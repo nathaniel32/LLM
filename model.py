@@ -132,7 +132,6 @@ class CausalSelfAttention(nn.Module):
             T_full = k.size(2)
             t_start = T_full - T
             att = att.masked_fill(self.bias[:, :, t_start:t_start + T, :T_full] == 0, float('-inf'))
-        #print(att.shape)
 
         att = F.softmax(att, dim=-1) # torch.Size([1, 12, 7, 7])
         att = self.attn_dropout(att)
