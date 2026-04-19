@@ -26,23 +26,6 @@ class GPTConfig:
             dropout=self.dropout
         )
 
-""" class KVCache:
-    def __init__(self):
-        self.k: torch.Tensor | None = None
-        self.v: torch.Tensor | None = None
-
-    def update(self, k: torch.Tensor, v: torch.Tensor):
-        if self.k is None:
-            self.k, self.v = k, v
-        else:
-            self.k = torch.cat([self.k, k], dim=2)  # concat di dim T
-            self.v = torch.cat([self.v, v], dim=2)
-        return self.k, self.v
-
-    def reset(self):
-        self.k = None
-        self.v = None """
-
 class KVCache:
     def __init__(self):
         self.k: torch.Tensor | None = None
@@ -51,18 +34,16 @@ class KVCache:
 
     def update(self, k: torch.Tensor, v: torch.Tensor, block_size: int):
         B, nh, T, hs = k.shape
-        # Alokasi buffer jika belum ada atau batch/head berubah
+
         if self.k is None or self.k.shape[0] != B or self.k.shape[1] != nh:
             self.k = torch.zeros((B, nh, block_size, hs), device=k.device, dtype=k.dtype)
             self.v = torch.zeros((B, nh, block_size, hs), device=v.device, dtype=v.dtype)
             self.pos = 0
 
-        # Masukkan k, v baru ke dalam buffer di posisi yang tepat
         self.k[:, :, self.pos:self.pos + T, :] = k
         self.v[:, :, self.pos:self.pos + T, :] = v
         self.pos += T
 
-        # Kembalikan hanya bagian buffer yang sudah terisi
         return self.k[:, :, :self.pos, :], self.v[:, :, :self.pos, :]
 
     def reset(self):
@@ -134,7 +115,6 @@ class MultiHeadAttention(nn.Module):
         v = v.view(B, T, self.n_head, C // self.n_head).transpose(1, 2) # (B, nh, T, hs) -> torch.Size([1, 12, 7, 64])
 
         if use_cache:
-            # k, v = self.cache.update(k, v)
             k, v = self.cache.update(k, v, self.bias.size(-1))
 
         # causal self-attention; Self-attend: (B, nh, T, hs) x (B, nh, hs, T) -> (B, nh, T, T)
@@ -204,7 +184,6 @@ class MultiQueryAttention(nn.Module):
         v = v.view(B, T, 1, self.head_dim).transpose(1, 2) # (B, 1, T, hs) -> torch.Size([1, 1, 7, 64])
 
         if use_cache:
-            # k, v = self.cache.update(k, v)
             k, v = self.cache.update(k, v, self.bias.size(-1))
 
         # Expand K, V
@@ -281,7 +260,6 @@ class GroupedQueryAttention(nn.Module):
         v = v.view(B, T, self.n_kv_head, self.head_dim).transpose(1, 2) # (B, n_kv_head, T, hs) -> torch.Size([1, 4, 7, 64])
 
         if use_cache:
-            # k, v = self.cache.update(k, v)
             k, v = self.cache.update(k, v, self.bias.size(-1))
 
         # K, V
@@ -457,8 +435,6 @@ class GPT(nn.Module):
         assert t <= self.config.block_size, f"Cannot forward sequence of length {t}, block size is only {self.config.block_size}"
         
         if use_cache:
-            # ambil posisi saat ini dari panjang cache yang sudah ada
-            # cache_len = self.transformer.h[0].attn.cache.k.size(2) if self.transformer.h[0].attn.cache.k is not None else 0
             cache_len = self.transformer.h[0].attn.cache.pos
             pos = torch.arange(cache_len, cache_len + t, dtype=torch.long, device=device)
         else:
