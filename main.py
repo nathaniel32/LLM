@@ -168,7 +168,7 @@ class Main:
 
     def run(self, max_new_tokens, model_type, attn_type, start, temperature=0.8, top_k=200):
         #model = self.from_pretrained('gpt2')
-        model = self.from_out(attn_type=attn_type)
+        model = self.from_out(model_type, attn_type)
         model.eval()
         model.to(self.device)
 
