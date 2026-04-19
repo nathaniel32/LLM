@@ -10,7 +10,7 @@ import time
 import env
 
 class Train:
-    def __init__(self, model_type, attn_type, data_url="https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt", data_dir="datasets/shakespeare"):
+    def __init__(self, model_type, attn_type, dataset_type):
         seed = 1337
         torch.manual_seed(seed)
         torch.cuda.manual_seed(seed)
@@ -22,18 +22,21 @@ class Train:
         ptdtype = {'float32': torch.float32, 'bfloat16': torch.bfloat16, 'float16': torch.float16}[self.dtype]
         self.ctx = nullcontext() if self.device == 'cpu' else torch.amp.autocast(device_type=self.device, dtype=ptdtype)
 
-        self.out_dir = os.path.join('out', model_type, attn_type)
-        self.data_dir = data_dir
-        self.model_type = model_type
         self.attn_type = attn_type
-        self.config = GPTConfig(**env.configs[model_type])
+
+        self.out_dir = os.path.join('out', model_type, attn_type)
+        self.data_dir = os.path.join('datasets', dataset_type)
+        
+        self.config = GPTConfig(**env.model_configs[model_type])
+        
         self.batch_size = 1
         self.learning_rate = 6e-4
         self.eval_iters = 200
+        
         self.headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         }
-        self.prepare_dataset(data_url=data_url)
+        self.prepare_dataset(data_url=env.dataset_configs[dataset_type])
 
     def prepare_dataset(self, data_url):
         if os.path.exists(os.path.join(self.data_dir, 'train.bin')):
@@ -259,19 +262,12 @@ class Train:
 
 import argparse
 parser = argparse.ArgumentParser()
+parser.add_argument("--model_type", type=str, default="small")
 parser.add_argument("--attn_type", type=str, default="mha")
+parser.add_argument("--dataset_type", type=str, default="shakespeare")
 parser.add_argument("--no-resume", action="store_false", dest="resume", default=True)
 args = parser.parse_args()
 print(vars(args))
 
-#data_url="https://raw.githubusercontent.com/uwgraphics/VEP2_TCP_SimpleText/refs/heads/main/N3/N37535.txt"
-#data_dir="datasets/simple_text"
-
-#data_url = "https://id.wikipedia.org/w/index.php?title=Indonesia&action=raw"
-#data_dir = "datasets/wiki_indo"
-
-data_url = "https://id.wikipedia.org/w/api.php?action=query&format=json&prop=extracts&titles=Indonesia&explaintext=1"
-data_dir = "datasets/wiki_indo_json"
-
-train = Train(model_type="small", attn_type=args.attn_type, data_url=data_url, data_dir=data_dir)
+train = Train(model_type=args.model_type, attn_type=args.attn_type, dataset_type=args.dataset_type)
 train.train(resume=args.resume)
