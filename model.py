@@ -65,7 +65,7 @@ class LayerNorm(nn.Module):
 
         return F.layer_norm(input, self.weight.shape, self.weight, self.bias, 1e-5)
     
-class MultiHeadAttention(nn.Module):
+class CausalSelfAttentionGPT(nn.Module):
 
     def __init__(self, config:GPTConfig):
         super().__init__()
@@ -141,80 +141,9 @@ class MultiHeadAttention(nn.Module):
         y = self.resid_dropout(self.c_proj(y)) # torch.Size([1, 7, 768])
         return y
 
-class MultiQueryAttention(nn.Module):
+class CausalSelfAttention(nn.Module):
     
-    def __init__(self, config:GPTConfig):
-        super().__init__()
-
-        self.cache = KVCache()
-
-        assert config.n_embd % config.n_head == 0
-
-        self.head_dim = config.n_embd // config.n_head  # 64
-
-        # MQA
-        self.q_proj = nn.Linear(config.n_embd, config.n_embd, bias=config.bias) # torch.Size([768]) -> torch.Size([768])
-        self.k_proj = nn.Linear(config.n_embd, self.head_dim, bias=config.bias) # torch.Size([768]) -> torch.Size([64]) ← 1 head
-        self.v_proj = nn.Linear(config.n_embd, self.head_dim, bias=config.bias)
-        
-        # output projection
-        self.c_proj = nn.Linear(config.n_embd, config.n_embd, bias=config.bias) # torch.Size([768]) -> torch.Size([768])
-        
-        # regularization
-        self.attn_dropout = nn.Dropout(config.dropout)
-        self.resid_dropout = nn.Dropout(config.dropout)
-        self.n_head = config.n_head
-        self.n_embd = config.n_embd
-        self.dropout = config.dropout
-        
-        # causal mask to ensure that attention is only applied to the left in the input sequence
-        self.register_buffer("bias", torch.tril(torch.ones(config.block_size, config.block_size)).view(1, 1, config.block_size, config.block_size))
-
-    def forward(self, x:torch.Tensor, use_cache: bool = False):
-        B, T, C = x.size() # torch.Size([1, 7, 768])
-
-        # Projections
-        q = self.q_proj(x)  # (B, T, n_embd)
-        k = self.k_proj(x)  # (B, T, head_dim)   ← 1 head
-        v = self.v_proj(x)  # (B, T, head_dim)   ← 1 head
-
-        # Reshape
-        q = q.view(B, T, self.n_head, self.head_dim).transpose(1, 2) # (B, nh, T, hs) -> torch.Size([1, 12, 7, 64])
-        k = k.view(B, T, 1, self.head_dim).transpose(1, 2) # (B, 1, T, hs) -> torch.Size([1, 1, 7, 64])
-        v = v.view(B, T, 1, self.head_dim).transpose(1, 2) # (B, 1, T, hs) -> torch.Size([1, 1, 7, 64])
-
-        if use_cache:
-            k, v = self.cache.update(k, v, self.bias.size(-1))
-
-        # Expand K, V
-        T_full = k.size(2)
-        k = k.expand(B, self.n_head, T_full, self.head_dim)  # (B, nh, T_full, hs)
-        v = v.expand(B, self.n_head, T_full, self.head_dim)  # (B, nh, T_full, hs)
-
-        # Attention
-        T_q    = q.size(2)
-        t_start = T_full - T_q
-
-        att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(self.head_dim)) # torch.Size([1, 12, 7, 7])
-        att = att.masked_fill(self.bias[:, :, t_start:t_start + T_q, :T_full] == 0, float('-inf'))
-        #print(att.shape)
-
-        att = F.softmax(att, dim=-1) # torch.Size([1, 12, 7, 7])
-        att = self.attn_dropout(att)
-        y = att @ v # (B, nh, T, T) x (B, nh, T, hs) -> (B, nh, T, hs) | torch.Size([1, 12, 7, 7]) * torch.Size([1, 12, 7, 64]) -> torch.Size([1, 12, 7, 64])
-        
-        # re-assemble all head outputs side by side
-        y = y.transpose(1, 2).contiguous().view(B, T_q, C)
-        # 1. torch.Size([1, 12, 7, 64]) -> torch.Size([1, 7, 12, 64])
-        # 2. torch.Size([1, 7, 12, 64]) -> torch.Size([1, 7, 768])
-
-        # output projection
-        y = self.resid_dropout(self.c_proj(y)) # torch.Size([1, 7, 768])
-        return y
-
-class GroupedQueryAttention(nn.Module):
-    
-    def __init__(self, config:GPTConfig, n_kv_head=4):
+    def __init__(self, config:GPTConfig, n_kv_head):
         super().__init__()
 
         self.cache = KVCache()
@@ -228,7 +157,6 @@ class GroupedQueryAttention(nn.Module):
         self.head_dim = config.n_embd // config.n_head # 64
         self.kv_repeat = config.n_head // self.n_kv_head # 3
 
-        # GQA
         self.q_proj = nn.Linear(config.n_embd, config.n_embd, bias=config.bias) # torch.Size([768]) -> torch.Size([768])
         self.k_proj = nn.Linear(config.n_embd, self.n_kv_head * self.head_dim, bias=config.bias) # torch.Size([768]) -> torch.Size([256]) ← 1 group
         self.v_proj = nn.Linear(config.n_embd, self.n_kv_head * self.head_dim, bias=config.bias)
@@ -307,16 +235,18 @@ class MLP(nn.Module):
 class Block(nn.Module):
     "attention + MLP + LayerNorm"
 
-    def __init__(self, config:GPTConfig, attn_type="mha"):
+    def __init__(self, config:GPTConfig, attn_type):
         super().__init__()
         self.ln_1 = LayerNorm(config.n_embd, bias=config.bias)
         
-        if attn_type == "mha":
-            self.attn = MultiHeadAttention(config)
-        elif attn_type == "mqa":
-            self.attn = MultiQueryAttention(config)
+        if attn_type == "mha_gpt":
+            self.attn = CausalSelfAttentionGPT(config)
+        elif attn_type == "mha":
+            self.attn = CausalSelfAttention(config, n_kv_head=config.n_head)
         elif attn_type == "gqa":
-            self.attn = GroupedQueryAttention(config)
+            self.attn = CausalSelfAttention(config, n_kv_head=4)
+        elif attn_type == "gqa":
+            self.attn = CausalSelfAttention(config, n_kv_head=1)
         
         self.ln_2 = LayerNorm(config.n_embd, bias=config.bias)
         self.mlp = MLP(config)
@@ -329,7 +259,7 @@ class Block(nn.Module):
 class GPT(nn.Module):
     "Embedding → Block → Block → Block → lm_head"
 
-    def __init__(self, config:GPTConfig, attn_type="mha"):
+    def __init__(self, config:GPTConfig, attn_type):
         super().__init__()
         self.config = config
 
