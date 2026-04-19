@@ -189,21 +189,7 @@ class Main:
         print('Total Token:', len(y[0]))
         print('-'*100)
 
-        return text
-
-""" 
-main_warm = Main(use_cache=False)
-text_warm = main_warm.run()
-
-main = Main(use_cache=True)
-text = main.run()
-
-print(text)
-if text_warm == text:
-    print("== OK ==")
-else:
-    print("== NO ==")
-"""
+        return text, y
 
 import argparse
 parser = argparse.ArgumentParser()
@@ -216,5 +202,14 @@ args = parser.parse_args()
 print(vars(args))
 
 main = Main(use_cache=args.use_cache)
-text = main.run(args.max_new_tokens, args.model_type, args.attn_type, args.start)
+text, y = main.run(args.max_new_tokens, args.model_type, args.attn_type, args.start)
+
 print(text)
+
+main_1 = Main(use_cache=not args.use_cache)
+text_1, y_1 = main_1.run(args.max_new_tokens, args.model_type, args.attn_type, args.start)
+
+if torch.equal(y, y_1):
+    print("== OK ==")
+else:
+    print("== NO ==")

@@ -26,7 +26,7 @@ class GPTConfig:
             dropout=self.dropout
         )
 
-class KVCache:
+""" class KVCache:
     def __init__(self):
         self.k: torch.Tensor | None = None
         self.v: torch.Tensor | None = None
@@ -41,7 +41,32 @@ class KVCache:
 
     def reset(self):
         self.k = None
-        self.v = None
+        self.v = None """
+
+class KVCache:
+    def __init__(self):
+        self.k: torch.Tensor | None = None
+        self.v: torch.Tensor | None = None
+        self.pos = 0
+
+    def update(self, k: torch.Tensor, v: torch.Tensor, block_size: int):
+        B, nh, T, hs = k.shape
+        # Alokasi buffer jika belum ada atau batch/head berubah
+        if self.k is None or self.k.shape[0] != B or self.k.shape[1] != nh:
+            self.k = torch.zeros((B, nh, block_size, hs), device=k.device, dtype=k.dtype)
+            self.v = torch.zeros((B, nh, block_size, hs), device=v.device, dtype=v.dtype)
+            self.pos = 0
+
+        # Masukkan k, v baru ke dalam buffer di posisi yang tepat
+        self.k[:, :, self.pos:self.pos + T, :] = k
+        self.v[:, :, self.pos:self.pos + T, :] = v
+        self.pos += T
+
+        # Kembalikan hanya bagian buffer yang sudah terisi
+        return self.k[:, :, :self.pos, :], self.v[:, :, :self.pos, :]
+
+    def reset(self):
+        self.pos = 0
 
 class LayerNorm(nn.Module):
     """ LayerNorm but with an optional bias. PyTorch doesn't support simply bias=False """
@@ -109,7 +134,8 @@ class MultiHeadAttention(nn.Module):
         v = v.view(B, T, self.n_head, C // self.n_head).transpose(1, 2) # (B, nh, T, hs) -> torch.Size([1, 12, 7, 64])
 
         if use_cache:
-            k, v = self.cache.update(k, v)
+            # k, v = self.cache.update(k, v)
+            k, v = self.cache.update(k, v, self.bias.size(-1))
 
         # causal self-attention; Self-attend: (B, nh, T, hs) x (B, nh, hs, T) -> (B, nh, T, T)
         # manual implementation of attention
@@ -178,7 +204,8 @@ class MultiQueryAttention(nn.Module):
         v = v.view(B, T, 1, self.head_dim).transpose(1, 2) # (B, 1, T, hs) -> torch.Size([1, 1, 7, 64])
 
         if use_cache:
-            k, v = self.cache.update(k, v)
+            # k, v = self.cache.update(k, v)
+            k, v = self.cache.update(k, v, self.bias.size(-1))
 
         # Expand K, V
         T_full = k.size(2)
@@ -254,7 +281,8 @@ class GroupedQueryAttention(nn.Module):
         v = v.view(B, T, self.n_kv_head, self.head_dim).transpose(1, 2) # (B, n_kv_head, T, hs) -> torch.Size([1, 4, 7, 64])
 
         if use_cache:
-            k, v = self.cache.update(k, v)
+            # k, v = self.cache.update(k, v)
+            k, v = self.cache.update(k, v, self.bias.size(-1))
 
         # K, V
         k = k.repeat_interleave(self.kv_repeat, dim=1)  # (B, n_head, T_full, head_dim)
@@ -325,8 +353,6 @@ class GPT(nn.Module):
 
     def __init__(self, config:GPTConfig, attn_type="mha"):
         super().__init__()
-        assert config.vocab_size is not None
-        assert config.block_size is not None
         self.config = config
 
         self.transformer = nn.ModuleDict(dict(
@@ -377,9 +403,12 @@ class GPT(nn.Module):
         import inspect
 
         # start with all of the candidate parameters
-        param_dict = {pn: p for pn, p in self.named_parameters()}
+        #param_dict = {pn: p for pn, p in self.named_parameters()}
         # filter out those that do not require grad
-        param_dict = {pn: p for pn, p in param_dict.items() if p.requires_grad}
+        #param_dict = {pn: p for pn, p in param_dict.items() if p.requires_grad}
+
+        param_dict = {pn: p for pn, p in self.named_parameters() if p.requires_grad}
+
         # create optim groups. Any parameters that is 2D will be weight decayed, otherwise no.
         # i.e. all weight tensors in matmuls + embeddings decay, all biases and layernorms don't.
         decay_params = [p for n, p in param_dict.items() if p.dim() >= 2]
@@ -388,10 +417,12 @@ class GPT(nn.Module):
             {'params': decay_params, 'weight_decay': weight_decay},
             {'params': nodecay_params, 'weight_decay': 0.0}
         ]
+        
         num_decay_params = sum(p.numel() for p in decay_params)
         num_nodecay_params = sum(p.numel() for p in nodecay_params)
         print(f"num decayed parameter tensors: {len(decay_params)}, with {num_decay_params:,} parameters")
         print(f"num non-decayed parameter tensors: {len(nodecay_params)}, with {num_nodecay_params:,} parameters")
+        
         # Create AdamW optimizer and use the fused version if it is available
         fused_available = 'fused' in inspect.signature(torch.optim.AdamW).parameters
         use_fused = fused_available and device_type == 'cuda'
@@ -414,8 +445,7 @@ class GPT(nn.Module):
         # express our flops throughput as ratio of A100 bfloat16 peak flops
         flops_achieved = flops_per_iter * (1.0/dt) # per second
         flops_promised = 312e12 # A100 GPU bfloat16 peak flops is 312 TFLOPS
-        mfu = flops_achieved / flops_promised
-        return mfu
+        return flops_achieved / flops_promised
 
     def reset_cache(self):
         for block in self.transformer.h:
@@ -428,7 +458,8 @@ class GPT(nn.Module):
         
         if use_cache:
             # ambil posisi saat ini dari panjang cache yang sudah ada
-            cache_len = self.transformer.h[0].attn.cache.k.size(2) if self.transformer.h[0].attn.cache.k is not None else 0
+            # cache_len = self.transformer.h[0].attn.cache.k.size(2) if self.transformer.h[0].attn.cache.k is not None else 0
+            cache_len = self.transformer.h[0].attn.cache.pos
             pos = torch.arange(cache_len, cache_len + t, dtype=torch.long, device=device)
         else:
             pos = torch.arange(0, t, dtype=torch.long, device=device) # shape (t)
