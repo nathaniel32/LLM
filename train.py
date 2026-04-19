@@ -22,7 +22,7 @@ class Train:
         ptdtype = {'float32': torch.float32, 'bfloat16': torch.bfloat16, 'float16': torch.float16}[self.dtype]
         self.ctx = nullcontext() if self.device == 'cpu' else torch.amp.autocast(device_type=self.device, dtype=ptdtype)
 
-        self.out_dir = os.path.join('os', model_type, attn_type)
+        self.out_dir = os.path.join('out', model_type, attn_type)
         self.data_dir = data_dir
         self.model_type = model_type
         self.attn_type = attn_type
@@ -273,5 +273,5 @@ print(vars(args))
 data_url = "https://id.wikipedia.org/w/api.php?action=query&format=json&prop=extracts&titles=Indonesia&explaintext=1"
 data_dir = "datasets/wiki_indo_json"
 
-train = Train(model_type="medium", attn_type=args.attn_type, data_url=data_url, data_dir=data_dir)
+train = Train(model_type="small", attn_type=args.attn_type, data_url=data_url, data_dir=data_dir)
 train.train(resume=args.resume)
