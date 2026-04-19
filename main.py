@@ -74,10 +74,12 @@ class Main:
 
         return model
     
-    def from_out(self, out_dir="out", attn_type="mha"):
+    def from_out(self, model_type, attn_type):
         import os
-        # init from a model saved in a specific directory
-        ckpt_path = os.path.join(out_dir, attn_type, 'ckpt.pt')
+        
+        out_dir = os.path.join("out", model_type, attn_type)
+        ckpt_path = os.path.join(out_dir, 'ckpt.pt')
+        
         checkpoint = torch.load(ckpt_path, map_location=self.device)
         gptconf = GPTConfig(**checkpoint['model_args'])
         model = GPT(gptconf, attn_type)
@@ -164,7 +166,7 @@ class Main:
 
         print("Warm-up done.\n")
 
-    def run(self, max_new_tokens=1000, temperature=0.8, top_k=200, start="\n", attn_type="mha"):
+    def run(self, max_new_tokens, model_type, attn_type, start, temperature=0.8, top_k=200):
         #model = self.from_pretrained('gpt2')
         model = self.from_out(attn_type=attn_type)
         model.eval()
@@ -183,7 +185,7 @@ class Main:
         text = enc.decode(y[0].tolist())
 
         label = "use_cache=True" if self.use_cache else "use_cache=False"
-        print(f'\n[{label}] - [{attn_type}]')
+        print(f'\n[{label}] - [{attn_type}] - [{model_type}]')
         print('Total Token:', len(y[0]))
         print('-'*100)
 
@@ -191,10 +193,10 @@ class Main:
 
 """ 
 main_warm = Main(use_cache=False)
-text_warm = main_warm.run(max_new_tokens=1000, attn_type='mha')
+text_warm = main_warm.run()
 
 main = Main(use_cache=True)
-text = main.run(max_new_tokens=1000, attn_type='mha')
+text = main.run()
 
 print(text)
 if text_warm == text:
@@ -207,11 +209,12 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("--no-cache", action="store_false", dest="use_cache")
 parser.add_argument("--max_new_tokens", type=int, default=1000)
+parser.add_argument("--model_type", type=str, default="small")
 parser.add_argument("--attn_type", type=str, default="mha")
 parser.add_argument("--start", type=str, default="the colors of the German flag are")
 args = parser.parse_args()
 print(vars(args))
 
 main = Main(use_cache=args.use_cache)
-text = main.run(max_new_tokens=args.max_new_tokens, attn_type=args.attn_type, start=args.start)
+text = main.run(args.max_new_tokens, args.model_type, args.attn_type, args.start)
 print(text)
