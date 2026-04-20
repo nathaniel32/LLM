@@ -205,12 +205,11 @@ print(vars(args))
 main = Main(use_cache=args.use_cache)
 text, y = main.run(args.max_new_tokens, args.model_type, args.attn_type, args.start, pretrained=args.pretrained)
 
-print(text)
-
 if args.compare:
     main_1 = Main(use_cache=not args.use_cache)
     text_1, y_1 = main_1.run(args.max_new_tokens, args.model_type, args.attn_type, args.start, pretrained=args.pretrained)
-
+    
+    print(text)
     if torch.equal(y, y_1):
         print("== OK ==")
     else:
