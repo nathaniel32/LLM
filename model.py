@@ -4,6 +4,7 @@ from typing import Optional
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
+from abc import ABC, abstractmethod
 
 @dataclass
 class ModelConfig:
@@ -28,11 +29,22 @@ class ModelConfig:
             gqa_kv_head=self.gqa_kv_head
         )
 
-class KVCache:
+class BaseKVCache(ABC):
     def __init__(self):
+        self.pos = 0
+
+    @abstractmethod
+    def update(self, *args, block_size: int):
+        pass
+
+    def reset(self):
+        self.pos = 0
+
+class KVCache(BaseKVCache):
+    def __init__(self):
+        super().__init__()
         self.k: torch.Tensor | None = None
         self.v: torch.Tensor | None = None
-        self.pos = 0
 
     def update(self, k: torch.Tensor, v: torch.Tensor, block_size: int):
         B, nh, T, hs = k.shape
@@ -48,8 +60,22 @@ class KVCache:
 
         return self.k[:, :, :self.pos, :], self.v[:, :, :self.pos, :]
 
-    def reset(self):
-        self.pos = 0
+class LatentKVCache(BaseKVCache):
+    def __init__(self):
+        super().__init__()
+        self.c_kv: torch.Tensor | None = None
+
+    def update(self, c_kv: torch.Tensor, block_size: int):
+        B, T, latent_dim = c_kv.shape
+
+        if self.c_kv is None or self.c_kv.shape[0] != B:
+            self.c_kv = torch.zeros((B, block_size, latent_dim), device=c_kv.device, dtype=c_kv.dtype)
+            self.pos = 0
+
+        self.c_kv[:, self.pos:self.pos + T, :] = c_kv
+        self.pos += T
+
+        return self.c_kv[:, :self.pos, :]
 
 class LayerNorm(nn.Module):
     """ LayerNorm but with an optional bias. PyTorch doesn't support simply bias=False """
@@ -149,6 +175,9 @@ class CausalSelfAttention(nn.Module):
 class MultiHeadLatentAttention(nn.Module):
     def __init__(self, config:ModelConfig):
         super().__init__()
+        self.cache = LatentKVCache()
+
+        self.register_buffer("bias", torch.tril(torch.ones(config.block_size, config.block_size)).view(1, 1, config.block_size, config.block_size))
 
     def forward(self, x:torch.Tensor, use_cache: bool = False):
         B, T, C = x.size()
