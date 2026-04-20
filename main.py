@@ -141,7 +141,7 @@ class Main:
                 text = enc.decode(idx[0].tolist())
                 print('\033[u\033[J' + text, end='', flush=True)
 
-            if model.config.block_size == idx.size(-1):
+            if model.config.block_size < idx.size(-1):
                 print("Block full!")
                 break
 
