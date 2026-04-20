@@ -207,8 +207,7 @@ class MultiHeadLatentAttention(BaseSelfAttention):
         # KV compression
         self.kv_down = nn.Linear(config.n_embd, self.kv_latent_dim, bias=config.bias)
         self.kv_norm = RMSNorm(self.kv_latent_dim)
-        self.k_up = nn.Linear(self.kv_latent_dim, config.n_embd, bias=config.bias)
-        self.v_up = nn.Linear(self.kv_latent_dim, config.n_embd, bias=config.bias)
+        self.kv_up = nn.Linear(self.kv_latent_dim, config.n_embd * 2, bias=config.bias)
 
     def forward(self, x:torch.Tensor, use_cache: bool = False):
         B, T, C = x.size()
@@ -223,8 +222,9 @@ class MultiHeadLatentAttention(BaseSelfAttention):
         if use_cache:
             c_kv = self.cache.update(c_kv)
         
-        k = self.k_up(c_kv).view(B, -1, self.n_head, self.head_dim).transpose(1, 2)
-        v = self.v_up(c_kv).view(B, -1, self.n_head, self.head_dim).transpose(1, 2)
+        k, v = self.kv_up(c_kv).split(self.config.n_embd, dim=2)
+        k = k.view(B, -1, self.n_head, self.head_dim).transpose(1, 2)
+        v = v.view(B, -1, self.n_head, self.head_dim).transpose(1, 2)
 
         return self._causal_attention(q, k, v, B, T, C)
 
