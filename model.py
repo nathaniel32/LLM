@@ -131,8 +131,8 @@ class BaseSelfAttention(nn.Module):
 
     def _causal_attention(self, q, k, v, B, T, C):
         if self.flash:
-            causal = q.size(2) > 1
-            y = torch.nn.functional.scaled_dot_product_attention(q, k, v, attn_mask=None, dropout_p=self.config.dropout if self.training else 0, is_causal=causal)
+            is_causal = q.size(2) > 1
+            y = torch.nn.functional.scaled_dot_product_attention(q, k, v, attn_mask=None, dropout_p=self.config.dropout if self.training else 0, is_causal=is_causal)
         else:
             # Attention
             att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(self.head_dim)) # torch.Size([1, 12, 7, 7])
