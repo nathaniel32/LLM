@@ -198,6 +198,7 @@ class MultiHeadLatentAttention(nn.Module):
 
         # KV compression
         self.kv_down = nn.Linear(config.n_embd, self.kv_latent_dim, bias=config.bias)
+        self.kv_norm = RMSNorm(self.kv_latent_dim)
         self.k_up = nn.Linear(self.kv_latent_dim, config.n_embd, bias=config.bias)
         self.v_up = nn.Linear(self.kv_latent_dim, config.n_embd, bias=config.bias)
 
@@ -215,8 +216,8 @@ class MultiHeadLatentAttention(nn.Module):
         c_q = self.q_norm(self.q_down(x))
         q = self.q_up(c_q).view(B, T, self.n_head, self.head_dim).transpose(1, 2)
         
-        # KV: down-project -> up-project
-        c_kv = self.kv_down(x)
+        # KV: down-project -> normalize -> up-project
+        c_kv = self.kv_norm(self.kv_down(x))
 
         if use_cache:
             c_kv = self.cache.update(c_kv, self.bias.size(-1))
@@ -234,15 +235,13 @@ class MultiHeadLatentAttention(nn.Module):
 
         att = F.softmax(att, dim=-1) # torch.Size([1, 12, 7, 7])
         att = self.attn_dropout(att)
-        y = att @ v # (B, nh, T, T) x (B, nh, T, hs) -> (B, nh, T, hs) | torch.Size([1, 12, 7, 7]) * torch.Size([1, 12, 7, 64]) -> torch.Size([1, 12, 7, 64])
+        y = att @ v
         
         # re-assemble all head outputs side by side
         y = y.transpose(1, 2).contiguous().view(B, T, C)
-        # 1. torch.Size([1, 12, 7, 64]) -> torch.Size([1, 7, 12, 64])
-        # 2. torch.Size([1, 7, 12, 64]) -> torch.Size([1, 7, 768])
 
         # output projection
-        y = self.resid_dropout(self.c_proj(y)) # torch.Size([1, 7, 768])
+        y = self.resid_dropout(self.c_proj(y))
         return y
 
 class MLP(nn.Module):
