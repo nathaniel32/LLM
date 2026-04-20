@@ -93,36 +93,35 @@ class LayerNorm(nn.Module):
 
         return F.layer_norm(input, self.weight.shape, self.weight, self.bias, 1e-5)
 
-class CausalSelfAttention(nn.Module):
-    
-    def __init__(self, config:ModelConfig, n_kv_head):
+class RMSNorm(nn.Module):
+    """Root Mean Square Layer Normalization."""
+    def __init__(self, dim, eps=1e-6):
+        super().__init__()
+        self.eps = eps
+        self.weight = nn.Parameter(torch.ones(dim))
+
+    def forward(self, x):
+        rms = torch.sqrt(torch.mean(x ** 2, dim=-1, keepdim=True) + self.eps)
+        return x / rms * self.weight
+
+class BaseSelfAttention(nn.Module):
+    def __init__(self, config:ModelConfig):
         super().__init__()
 
-        self.cache = KVCache()
-
         assert config.n_embd % config.n_head == 0
-        
-        self.n_kv_head = n_kv_head
 
-        assert config.n_head % self.n_kv_head == 0
-
+        self.n_head = config.n_head
         self.head_dim = config.n_embd // config.n_head # 64
-        self.kv_repeat = config.n_head // self.n_kv_head # 3
-        self.kv_dim = self.n_kv_head * self.head_dim
 
-        self.c_attn = nn.Linear(config.n_embd, config.n_embd + 2 * self.kv_dim, bias=config.bias)
-        
         # output projection
         self.c_proj = nn.Linear(config.n_embd, config.n_embd, bias=config.bias) # torch.Size([768]) -> torch.Size([768])
-        
+
         # regularization
         self.attn_dropout = nn.Dropout(config.dropout)
         self.resid_dropout = nn.Dropout(config.dropout)
-        self.n_head = config.n_head
         
         # causal mask to ensure that attention is only applied to the left in the input sequence
         self.register_buffer("bias", torch.tril(torch.ones(config.block_size, config.block_size)).view(1, 1, config.block_size, config.block_size))
-
         #self.bias = torch.tril(torch.ones(config.block_size, config.block_size)).view(1, 1, config.block_size, config.block_size).to('cuda') # torch.Size([1, 1, 1024, 1024])
         """
         [1,0,0,0]
@@ -131,24 +130,7 @@ class CausalSelfAttention(nn.Module):
         [1,1,1,1] 
         """
 
-    def forward(self, x:torch.Tensor, use_cache: bool = False):
-        B, T, C = x.size() # torch.Size([1, 7, 768])
-
-        combined = self.c_attn(x)
-        q, k, v = combined.split([C, self.kv_dim, self.kv_dim], dim=2)
-
-        # Reshape
-        q = q.view(B, T, self.n_head, self.head_dim).transpose(1, 2) # (B, nh, T, hs) -> torch.Size([1, 12, 7, 64])
-        k = k.view(B, T, self.n_kv_head, self.head_dim).transpose(1, 2) # (B, n_kv_head, T, hs) -> torch.Size([1, 4, 7, 64])
-        v = v.view(B, T, self.n_kv_head, self.head_dim).transpose(1, 2) # (B, n_kv_head, T, hs) -> torch.Size([1, 4, 7, 64])
-
-        if use_cache:
-            k, v = self.cache.update(k, v, self.bias.size(-1))
-
-        # K, V
-        k = k.repeat_interleave(self.kv_repeat, dim=1)  # (B, n_head, T_full, head_dim)
-        v = v.repeat_interleave(self.kv_repeat, dim=1)
-
+    def _causal_attention(self, q, k, v, B, T, C):
         # Attention
         att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(self.head_dim)) # torch.Size([1, 12, 7, 7])
 
@@ -170,24 +152,47 @@ class CausalSelfAttention(nn.Module):
         y = self.resid_dropout(self.c_proj(y)) # torch.Size([1, 7, 768])
         return y
 
-class RMSNorm(nn.Module):
-    """Root Mean Square Layer Normalization."""
-    def __init__(self, dim, eps=1e-6):
-        super().__init__()
-        self.eps = eps
-        self.weight = nn.Parameter(torch.ones(dim))
+class CausalSelfAttention(BaseSelfAttention):
+    
+    def __init__(self, config:ModelConfig, n_kv_head):
+        super().__init__(config)
 
-    def forward(self, x):
-        rms = torch.sqrt(torch.mean(x ** 2, dim=-1, keepdim=True) + self.eps)
-        return x / rms * self.weight
+        self.cache = KVCache()
 
-class MultiHeadLatentAttention(nn.Module):
+        assert config.n_head % n_kv_head == 0
+        self.n_kv_head = n_kv_head
+
+        self.kv_repeat = config.n_head // n_kv_head # 3
+        self.kv_dim = n_kv_head * self.head_dim
+
+        self.c_attn = nn.Linear(config.n_embd, config.n_embd + 2 * self.kv_dim, bias=config.bias)
+        
+    def forward(self, x:torch.Tensor, use_cache: bool = False):
+        B, T, C = x.size() # torch.Size([1, 7, 768])
+
+        combined = self.c_attn(x)
+        q, k, v = combined.split([C, self.kv_dim, self.kv_dim], dim=2)
+
+        # Reshape
+        q = q.view(B, T, self.n_head, self.head_dim).transpose(1, 2) # (B, nh, T, hs) -> torch.Size([1, 12, 7, 64])
+        k = k.view(B, T, self.n_kv_head, self.head_dim).transpose(1, 2) # (B, n_kv_head, T, hs) -> torch.Size([1, 4, 7, 64])
+        v = v.view(B, T, self.n_kv_head, self.head_dim).transpose(1, 2) # (B, n_kv_head, T, hs) -> torch.Size([1, 4, 7, 64])
+
+        if use_cache:
+            k, v = self.cache.update(k, v, self.bias.size(-1))
+
+        # K, V
+        k = k.repeat_interleave(self.kv_repeat, dim=1)  # (B, n_head, T_full, head_dim)
+        v = v.repeat_interleave(self.kv_repeat, dim=1)
+
+        return self._causal_attention(q, k, v, B, T, C)
+
+class MultiHeadLatentAttention(BaseSelfAttention):
     def __init__(self, config:ModelConfig):
-        super().__init__()
+        super().__init__(config)
+
         self.cache = LatentKVCache()
 
-        self.n_head = config.n_head
-        self.head_dim = config.n_embd // config.n_head
         self.q_latent_dim = 128
         self.kv_latent_dim = 64
 
@@ -201,13 +206,6 @@ class MultiHeadLatentAttention(nn.Module):
         self.kv_norm = RMSNorm(self.kv_latent_dim)
         self.k_up = nn.Linear(self.kv_latent_dim, config.n_embd, bias=config.bias)
         self.v_up = nn.Linear(self.kv_latent_dim, config.n_embd, bias=config.bias)
-
-        self.c_proj = nn.Linear(config.n_embd, config.n_embd, bias=config.bias)
-
-        self.attn_dropout = nn.Dropout(config.dropout)
-        self.resid_dropout = nn.Dropout(config.dropout)
-
-        self.register_buffer("bias", torch.tril(torch.ones(config.block_size, config.block_size)).view(1, 1, config.block_size, config.block_size))
 
     def forward(self, x:torch.Tensor, use_cache: bool = False):
         B, T, C = x.size()
@@ -225,24 +223,7 @@ class MultiHeadLatentAttention(nn.Module):
         k = self.k_up(c_kv).view(B, -1, self.n_head, self.head_dim).transpose(1, 2)
         v = self.v_up(c_kv).view(B, -1, self.n_head, self.head_dim).transpose(1, 2)
 
-        # Attention
-        att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(self.head_dim))
-
-        if T > 1:
-            T_full = k.size(2)
-            t_start = T_full - T
-            att = att.masked_fill(self.bias[:, :, t_start:t_start + T, :T_full] == 0, float('-inf'))
-
-        att = F.softmax(att, dim=-1) # torch.Size([1, 12, 7, 7])
-        att = self.attn_dropout(att)
-        y = att @ v
-        
-        # re-assemble all head outputs side by side
-        y = y.transpose(1, 2).contiguous().view(B, T, C)
-
-        # output projection
-        y = self.resid_dropout(self.c_proj(y))
-        return y
+        return self._causal_attention(q, k, v, B, T, C)
 
 class MLP(nn.Module):
 
