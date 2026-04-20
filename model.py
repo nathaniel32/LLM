@@ -146,6 +146,13 @@ class CausalSelfAttention(nn.Module):
         y = self.resid_dropout(self.c_proj(y)) # torch.Size([1, 7, 768])
         return y
 
+class MultiHeadLatentAttention(nn.Module):
+    def __init__(self, config:ModelConfig):
+        super().__init__()
+
+    def forward(self, x:torch.Tensor, use_cache: bool = False):
+        B, T, C = x.size()
+
 class MLP(nn.Module):
 
     def __init__(self, config:ModelConfig):
@@ -169,14 +176,17 @@ class Block(nn.Module):
         super().__init__()
         self.ln_1 = LayerNorm(config.n_embd, bias=config.bias)
         
-        if attn_type == "mha":
-            n_kv_head = config.n_head
-        elif attn_type == "gqa":
-            n_kv_head=config.gqa_kv_head
-        elif attn_type == "mqa":
-            n_kv_head = 1
-        
-        self.attn = CausalSelfAttention(config, n_kv_head=n_kv_head)
+        if attn_type == "mla":
+            self.attn = MultiHeadLatentAttention(config)
+        else:
+            if attn_type == "mha":
+                n_kv_head = config.n_head
+            elif attn_type == "gqa":
+                n_kv_head=config.gqa_kv_head
+            elif attn_type == "mqa":
+                n_kv_head = 1
+            
+            self.attn = CausalSelfAttention(config, n_kv_head=n_kv_head)
         
         self.ln_2 = LayerNorm(config.n_embd, bias=config.bias)
         self.mlp = MLP(config)
