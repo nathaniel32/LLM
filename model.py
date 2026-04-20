@@ -30,28 +30,29 @@ class ModelConfig:
         )
 
 class BaseKVCache(ABC):
-    def __init__(self):
+    def __init__(self, block_size):
         self.pos = 0
+        self.block_size = block_size
 
     @abstractmethod
-    def update(self, *args, block_size: int):
+    def update(self, *args):
         pass
 
     def reset(self):
         self.pos = 0
 
 class KVCache(BaseKVCache):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, block_size):
+        super().__init__(block_size)
         self.k: torch.Tensor | None = None
         self.v: torch.Tensor | None = None
 
-    def update(self, k: torch.Tensor, v: torch.Tensor, block_size: int):
+    def update(self, k: torch.Tensor, v: torch.Tensor):
         B, nh, T, hs = k.shape
 
         if self.k is None or self.k.shape[0] != B or self.k.shape[1] != nh:
-            self.k = torch.zeros((B, nh, block_size, hs), device=k.device, dtype=k.dtype)
-            self.v = torch.zeros((B, nh, block_size, hs), device=v.device, dtype=v.dtype)
+            self.k = torch.zeros((B, nh, self.block_size, hs), device=k.device, dtype=k.dtype)
+            self.v = torch.zeros((B, nh, self.block_size, hs), device=v.device, dtype=v.dtype)
             self.pos = 0
 
         self.k[:, :, self.pos:self.pos + T, :] = k
@@ -61,15 +62,15 @@ class KVCache(BaseKVCache):
         return self.k[:, :, :self.pos, :], self.v[:, :, :self.pos, :]
 
 class LatentKVCache(BaseKVCache):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, block_size):
+        super().__init__(block_size)
         self.c_kv: torch.Tensor | None = None
 
-    def update(self, c_kv: torch.Tensor, block_size: int):
+    def update(self, c_kv: torch.Tensor):
         B, T, latent_dim = c_kv.shape
 
         if self.c_kv is None or self.c_kv.shape[0] != B:
-            self.c_kv = torch.zeros((B, block_size, latent_dim), device=c_kv.device, dtype=c_kv.dtype)
+            self.c_kv = torch.zeros((B, self.block_size, latent_dim), device=c_kv.device, dtype=c_kv.dtype)
             self.pos = 0
 
         self.c_kv[:, self.pos:self.pos + T, :] = c_kv
@@ -157,7 +158,7 @@ class CausalSelfAttention(BaseSelfAttention):
     def __init__(self, config:ModelConfig, n_kv_head):
         super().__init__(config)
 
-        self.cache = KVCache()
+        self.cache = KVCache(config.block_size)
 
         assert config.n_head % n_kv_head == 0
         self.n_kv_head = n_kv_head
@@ -179,7 +180,7 @@ class CausalSelfAttention(BaseSelfAttention):
         v = v.view(B, T, self.n_kv_head, self.head_dim).transpose(1, 2) # (B, n_kv_head, T, hs) -> torch.Size([1, 4, 7, 64])
 
         if use_cache:
-            k, v = self.cache.update(k, v, self.bias.size(-1))
+            k, v = self.cache.update(k, v)
 
         # K, V
         k = k.repeat_interleave(self.kv_repeat, dim=1)  # (B, n_head, T_full, head_dim)
@@ -191,7 +192,7 @@ class MultiHeadLatentAttention(BaseSelfAttention):
     def __init__(self, config:ModelConfig):
         super().__init__(config)
 
-        self.cache = LatentKVCache()
+        self.cache = LatentKVCache(config.block_size)
 
         self.q_latent_dim = 128
         self.kv_latent_dim = 64
@@ -218,7 +219,7 @@ class MultiHeadLatentAttention(BaseSelfAttention):
         c_kv = self.kv_norm(self.kv_down(x))
 
         if use_cache:
-            c_kv = self.cache.update(c_kv, self.bias.size(-1))
+            c_kv = self.cache.update(c_kv)
         
         k = self.k_up(c_kv).view(B, -1, self.n_head, self.head_dim).transpose(1, 2)
         v = self.v_up(c_kv).view(B, -1, self.n_head, self.head_dim).transpose(1, 2)
