@@ -119,8 +119,6 @@ class CausalSelfAttention(nn.Module):
         self.attn_dropout = nn.Dropout(config.dropout)
         self.resid_dropout = nn.Dropout(config.dropout)
         self.n_head = config.n_head
-        self.n_embd = config.n_embd
-        self.dropout = config.dropout
         
         # causal mask to ensure that attention is only applied to the left in the input sequence
         self.register_buffer("bias", torch.tril(torch.ones(config.block_size, config.block_size)).view(1, 1, config.block_size, config.block_size))
@@ -172,15 +170,80 @@ class CausalSelfAttention(nn.Module):
         y = self.resid_dropout(self.c_proj(y)) # torch.Size([1, 7, 768])
         return y
 
+class RMSNorm(nn.Module):
+    """Root Mean Square Layer Normalization."""
+    def __init__(self, dim, eps=1e-6):
+        super().__init__()
+        self.eps = eps
+        self.weight = nn.Parameter(torch.ones(dim))
+
+    def forward(self, x):
+        rms = torch.sqrt(torch.mean(x ** 2, dim=-1, keepdim=True) + self.eps)
+        return x / rms * self.weight
+
 class MultiHeadLatentAttention(nn.Module):
     def __init__(self, config:ModelConfig):
         super().__init__()
         self.cache = LatentKVCache()
 
+        self.n_head = config.n_head
+        self.head_dim = config.n_embd // config.n_head
+        self.q_latent_dim = 128
+        self.kv_latent_dim = 64
+
+        # Query compression
+        self.q_down = nn.Linear(config.n_embd, self.q_latent_dim, bias=config.bias)
+        self.q_norm = RMSNorm(self.q_latent_dim)
+        self.q_up = nn.Linear(self.q_latent_dim, config.n_embd, bias=config.bias)
+
+        # KV compression
+        self.kv_down = nn.Linear(config.n_embd, self.kv_latent_dim, bias=config.bias)
+        self.k_up = nn.Linear(self.kv_latent_dim, config.n_embd, bias=config.bias)
+        self.v_up = nn.Linear(self.kv_latent_dim, config.n_embd, bias=config.bias)
+
+        self.c_proj = nn.Linear(config.n_embd, config.n_embd, bias=config.bias)
+
+        self.attn_dropout = nn.Dropout(config.dropout)
+        self.resid_dropout = nn.Dropout(config.dropout)
+
         self.register_buffer("bias", torch.tril(torch.ones(config.block_size, config.block_size)).view(1, 1, config.block_size, config.block_size))
 
     def forward(self, x:torch.Tensor, use_cache: bool = False):
         B, T, C = x.size()
+
+        # Q: down-project -> normalize -> up-project
+        c_q = self.q_norm(self.q_down(x))
+        q = self.q_up(c_q).view(B, T, self.n_head, self.head_dim).transpose(1, 2)
+        
+        # KV: down-project -> up-project
+        c_kv = self.kv_down(x)
+
+        if use_cache:
+            c_kv = self.cache.update(c_kv, self.bias.size(-1))
+        
+        k = self.k_up(c_kv).view(B, -1, self.n_head, self.head_dim).transpose(1, 2)
+        v = self.v_up(c_kv).view(B, -1, self.n_head, self.head_dim).transpose(1, 2)
+
+        # Attention
+        att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(self.head_dim))
+
+        if T > 1:
+            T_full = k.size(2)
+            t_start = T_full - T
+            att = att.masked_fill(self.bias[:, :, t_start:t_start + T, :T_full] == 0, float('-inf'))
+
+        att = F.softmax(att, dim=-1) # torch.Size([1, 12, 7, 7])
+        att = self.attn_dropout(att)
+        y = att @ v # (B, nh, T, T) x (B, nh, T, hs) -> (B, nh, T, hs) | torch.Size([1, 12, 7, 7]) * torch.Size([1, 12, 7, 64]) -> torch.Size([1, 12, 7, 64])
+        
+        # re-assemble all head outputs side by side
+        y = y.transpose(1, 2).contiguous().view(B, T, C)
+        # 1. torch.Size([1, 12, 7, 64]) -> torch.Size([1, 7, 12, 64])
+        # 2. torch.Size([1, 7, 12, 64]) -> torch.Size([1, 7, 768])
+
+        # output projection
+        y = self.resid_dropout(self.c_proj(y)) # torch.Size([1, 7, 768])
+        return y
 
 class MLP(nn.Module):
 
