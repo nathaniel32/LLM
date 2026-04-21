@@ -177,7 +177,7 @@ class Train:
         running_mfu = -1.0
         decay_lr = True # whether to decay the learning rate
         eval_interval = 10
-        always_save_checkpoint = True
+        always_save_checkpoint = False
         eval_only = False # if True, script exits right after the first eval
         gradient_accumulation_steps = 5 * 8
         scaler = torch.amp.GradScaler(enabled=(self.dtype == 'float16'))
@@ -204,7 +204,7 @@ class Train:
                 })
                 if losses['val'] < best_val_loss or always_save_checkpoint:
                     best_val_loss = losses['val']
-                    if iter_num > 0 or always_save_checkpoint:
+                    if iter_num > 0:
                         checkpoint = {
                             'model': model.state_dict(),
                             'optimizer': optimizer.state_dict(),
