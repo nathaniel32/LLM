@@ -106,10 +106,12 @@ class RMSNorm(nn.Module):
         return x / rms * self.weight
 
 class BaseSelfAttention(nn.Module):
-    def __init__(self, config:ModelConfig):
+    def __init__(self, config:ModelConfig, is_rope):
         super().__init__()
 
         assert config.n_embd % config.n_head == 0
+
+        self.is_rope = is_rope
 
         self.n_head = config.n_head
         self.head_dim = config.n_embd // config.n_head # 64
@@ -154,11 +156,45 @@ class BaseSelfAttention(nn.Module):
         # output projection
         y = self.resid_dropout(self.c_proj(y)) # torch.Size([1, 7, 768])
         return y
+    
+    @staticmethod
+    def _frequencies_calculation(embedding: torch.Tensor, base=10000):
+        pairs = embedding.view(-1, 2)
+
+        # theta(i) = 10000 ** (-2i/d)
+        i = torch.arange(0, pairs.size(0)).float()
+        thetas = base ** (-2 * i / embedding.size(-1))
+        return thetas, pairs
+
+    @staticmethod
+    def _angles_calculation(frequencies, pos):
+        angles = pos * frequencies
+        return angles
+
+    @staticmethod
+    def _rotate_vector(pairs, angles):
+        x = pairs[:, 0]
+        y = pairs[:, 1]
+        
+        cos_a = torch.cos(angles)
+        sin_a = torch.sin(angles)
+        
+        x_new = x * cos_a - y * sin_a
+        y_new = x * sin_a + y * cos_a
+        
+        return torch.stack([x_new, y_new], dim=-1).flatten()
+    
+    @classmethod
+    def apply_rope(cls, embedding, pos):
+        frequencies, pairs = cls._frequencies_calculation(embedding)
+        angles = cls._angles_calculation(frequencies, pos)
+        rotated_embedding = cls._rotate_vector(pairs, angles)
+        return rotated_embedding
 
 class CausalSelfAttention(BaseSelfAttention):
     
-    def __init__(self, config:ModelConfig, n_kv_head):
-        super().__init__(config)
+    def __init__(self, config:ModelConfig, is_rope, n_kv_head):
+        super().__init__(config, is_rope)
 
         self.cache = KVCache(config.block_size)
 
@@ -191,8 +227,8 @@ class CausalSelfAttention(BaseSelfAttention):
         return self._causal_attention(q, k, v, B, T, C)
 
 class MultiHeadLatentAttention(BaseSelfAttention):
-    def __init__(self, config:ModelConfig):
-        super().__init__(config)
+    def __init__(self, config:ModelConfig, is_rope):
+        super().__init__(config, is_rope)
 
         self.cache = LatentKVCache(config.block_size)
 
@@ -247,12 +283,12 @@ class MLP(nn.Module):
 class Block(nn.Module):
     "attention + MLP + LayerNorm"
 
-    def __init__(self, config:ModelConfig, attn_type):
+    def __init__(self, config:ModelConfig, attn_type, is_rope):
         super().__init__()
         self.ln_1 = LayerNorm(config.n_embd, bias=config.bias)
         
         if attn_type == "mla":
-            self.attn = MultiHeadLatentAttention(config)
+            self.attn = MultiHeadLatentAttention(config, is_rope)
         else:
             if attn_type == "mha":
                 n_kv_head = config.n_head
@@ -261,7 +297,7 @@ class Block(nn.Module):
             elif attn_type == "mqa":
                 n_kv_head = 1
             
-            self.attn = CausalSelfAttention(config, n_kv_head=n_kv_head)
+            self.attn = CausalSelfAttention(config, is_rope, n_kv_head=n_kv_head)
         
         self.ln_2 = LayerNorm(config.n_embd, bias=config.bias)
         self.mlp = MLP(config)
@@ -282,7 +318,7 @@ class GPT(nn.Module):
             wte = nn.Embedding(config.vocab_size, config.n_embd), # Weight Token Embedding -> torch.Size([50257, 768])
             wpe = nn.Embedding(config.block_size, config.n_embd) if is_pos_emb else None, # Weight Position Embedding -> torch.Size([1024, 768])
             drop = nn.Dropout(config.dropout),
-            h = nn.ModuleList([Block(config, attn_type) for _ in range(config.n_layer)]),
+            h = nn.ModuleList([Block(config, attn_type, is_rope=not is_pos_emb) for _ in range(config.n_layer)]),
             ln_f = LayerNorm(config.n_embd, bias=config.bias),
         ))
         self.lm_head = nn.Linear(config.n_embd, config.vocab_size, bias=False) # torch.Size([50257, 768]) | 768 input features & 50257 output features
