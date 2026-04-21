@@ -204,20 +204,19 @@ class Train:
                 })
                 if losses['val'] < best_val_loss or always_save_checkpoint:
                     best_val_loss = losses['val']
-                    if iter_num > 0:
-                        checkpoint = {
-                            'model': model.state_dict(),
-                            'optimizer': optimizer.state_dict(),
-                            'model_args': self.config.to_dict(),
-                            'iter_num': iter_num,
-                            'best_val_loss': best_val_loss
-                        }
-                        save_dir = os.path.join(self.out_dir)
-                        print(f"saving checkpoint to {save_dir}")
-                        
-                        os.makedirs(save_dir, exist_ok=True)
-                        torch.save(checkpoint, os.path.join(save_dir, 'ckpt.pt'))
-                        print("Checkpoint saved successfully.")
+                    checkpoint = {
+                        'model': model.state_dict(),
+                        'optimizer': optimizer.state_dict(),
+                        'model_args': self.config.to_dict(),
+                        'iter_num': iter_num,
+                        'best_val_loss': best_val_loss
+                    }
+                    save_dir = os.path.join(self.out_dir)
+                    print(f"saving checkpoint to {save_dir}")
+                    
+                    os.makedirs(save_dir, exist_ok=True)
+                    torch.save(checkpoint, os.path.join(save_dir, 'ckpt.pt'))
+                    print("Checkpoint saved successfully.")
 
             if iter_num == 0 and eval_only:
                 break
