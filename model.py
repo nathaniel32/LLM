@@ -175,7 +175,8 @@ class BaseSelfAttention(nn.Module):
         
         # after cache --> full token seq
         # before cache and seq_len > 1 --> start token
-        pos_start = 0 if not is_before_cache and seq_len > 1 else pos - 1
+        is_full_seq = not is_before_cache and seq_len > 1
+        pos_start = 0 if is_full_seq else pos - 1
         pos_end = pos_start + seq_len
 
         # Buat [seq_len, head_dim//2], langsung di device yang benar
