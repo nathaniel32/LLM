@@ -177,7 +177,6 @@ class Train:
         running_mfu = -1.0
         decay_lr = True # whether to decay the learning rate
         eval_interval = 10
-        always_save_checkpoint = False
         eval_only = False # if True, script exits right after the first eval
         gradient_accumulation_steps = 5 * 8
         scaler = torch.amp.GradScaler(enabled=(self.dtype == 'float16'))
@@ -185,6 +184,9 @@ class Train:
         log_interval = 1
         max_iters = 2000 # total number of training iterations
 
+        patience = 20
+        patience_counter = 0
+        
         while iter_num < max_iters:
             # determine and set the learning rate for this iteration
             lr = self.get_lr(iter_num) if decay_lr else self.learning_rate
@@ -200,8 +202,9 @@ class Train:
                     "lr": lr,
                     "mfu": running_mfu*100, # convert to percentage
                 })
-                if losses['val'] < best_val_loss or always_save_checkpoint:
+                if losses['val'] < best_val_loss:
                     best_val_loss = losses['val']
+                    patience_counter = 0
                     checkpoint = {
                         'model': model.state_dict(),
                         'optimizer': optimizer.state_dict(),
@@ -215,6 +218,14 @@ class Train:
                     os.makedirs(save_dir, exist_ok=True)
                     torch.save(checkpoint, os.path.join(save_dir, 'ckpt.pt'))
                     print("Checkpoint saved successfully.")
+                else:
+                    patience_counter += 1
+
+                if patience_counter >= patience:
+                    print(f"Early stopping triggered at iter {iter_num} after {patience_counter} evaluations without improvement.")
+                    break
+                else:
+                    print(f"Patience: {patience_counter}/{patience}")
 
             if iter_num == 0 and eval_only:
                 break
