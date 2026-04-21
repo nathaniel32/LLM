@@ -173,19 +173,20 @@ class Train:
         X, Y = self.get_batch('train')
         
         t0 = time.time()
-        local_iter_num = 0
-        running_mfu = -1.0
+        
         decay_lr = True # whether to decay the learning rate
-        eval_interval = 10
-        eval_only = False # if True, script exits right after the first eval
         gradient_accumulation_steps = 5 * 8
         scaler = torch.amp.GradScaler(enabled=(self.dtype == 'float16'))
         grad_clip = 1.0 # clip gradients at this value, or disable if == 0.0
+        
         log_interval = 1
+        eval_interval = 10
         max_iters = 2000 # total number of training iterations
-
         patience = 20
+
         patience_counter = 0
+        local_iter_num = 0
+        running_mfu = -1.0
         
         while iter_num < max_iters:
             # determine and set the learning rate for this iteration
@@ -226,9 +227,6 @@ class Train:
                     break
                 else:
                     print(f"Patience: {patience_counter}/{patience}")
-
-            if iter_num == 0 and eval_only:
-                break
 
             # forward backward update, with optional gradient accumulation to simulate larger batch size
             # and using the GradScaler if data type is float16
