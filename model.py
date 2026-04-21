@@ -158,38 +158,44 @@ class BaseSelfAttention(nn.Module):
         return y
     
     @staticmethod
-    def _frequencies_calculation(embedding: torch.Tensor, base=10000):
-        pairs = embedding.view(-1, 2)
+    def _frequencies_calculation(head_dim: int, base: int = 10000):
+        # Shape: [head_dim//2]
+        i = torch.arange(0, head_dim // 2, dtype=torch.float32)
+        return base ** (-2 * i / head_dim)
 
-        # theta(i) = 10000 ** (-2i/d)
-        i = torch.arange(0, pairs.size(0)).float()
-        thetas = base ** (-2 * i / embedding.size(-1))
-        return thetas, pairs
-
-    @staticmethod
-    def _angles_calculation(frequencies, pos):
-        angles = pos * frequencies
-        return angles
-
-    @staticmethod
-    def _rotate_vector(pairs, angles):
-        x = pairs[:, 0]
-        y = pairs[:, 1]
-        
-        cos_a = torch.cos(angles)
-        sin_a = torch.sin(angles)
-        
-        x_new = x * cos_a - y * sin_a
-        y_new = x * sin_a + y * cos_a
-        
-        return torch.stack([x_new, y_new], dim=-1).flatten()
-    
     @classmethod
-    def apply_rope(cls, x, pos):
-        frequencies, pairs = cls._frequencies_calculation(x)
-        angles = cls._angles_calculation(frequencies, pos)
-        rotated_x = cls._rotate_vector(pairs, angles)
-        return rotated_x
+    def apply_rope(cls, x: torch.Tensor, pos, is_before_cache):
+        """
+        x:   [batch, heads, seq_len, head_dim]
+        pos: int — posisi awal (default 0, saat KV-cache bisa > 0)
+        """
+        head_dim = x.shape[-1]
+        seq_len  = x.shape[-2]
+        device   = x.device
+        
+        pos_start = 0 if not is_before_cache and seq_len > 1 else pos
+        pos_end = seq_len if not is_before_cache and seq_len > 1 else pos+seq_len
+
+        # Buat [seq_len, head_dim//2], langsung di device yang benar
+        freqs   = cls._frequencies_calculation(head_dim).to(device)         # [d//2]
+        pos_ids = torch.arange(pos_start, pos_end, device=device).float()   # [seq_len]
+        angles  = torch.outer(pos_ids, freqs)                               # [seq_len, d//2]
+
+        print(x.shape[-2])
+        print(pos_ids)
+        print("...."*10)
+
+        cos_a = torch.cos(angles)  # [seq_len, d//2]
+        sin_a = torch.sin(angles)
+
+        # Split half — broadcast otomatis ke [B, H, seq_len, d//2]
+        x1, x2 = x[..., :head_dim//2], x[..., head_dim//2:]
+        x_rot = torch.cat([
+            x1 * cos_a - x2 * sin_a,
+            x1 * sin_a + x2 * cos_a,
+        ], dim=-1)
+
+        return x_rot
 
 class CausalSelfAttention(BaseSelfAttention):
     
@@ -217,9 +223,14 @@ class CausalSelfAttention(BaseSelfAttention):
         k = k.view(B, T, self.n_kv_head, self.head_dim).transpose(1, 2) # (B, n_kv_head, T, hs) -> torch.Size([1, 4, 7, 64])
         v = v.view(B, T, self.n_kv_head, self.head_dim).transpose(1, 2) # (B, n_kv_head, T, hs) -> torch.Size([1, 4, 7, 64])
 
+        if self.is_rope:
+            pos = self.cache.pos
+            q = self.apply_rope(q, pos, is_before_cache=True)
+            k = self.apply_rope(k, pos, is_before_cache=True)
+
         if use_cache:
             k, v = self.cache.update(k, v)
-
+        
         # K, V
         k = k.repeat_interleave(self.kv_repeat, dim=1)  # (B, n_head, T_full, head_dim)
         v = v.repeat_interleave(self.kv_repeat, dim=1)
@@ -261,6 +272,11 @@ class MultiHeadLatentAttention(BaseSelfAttention):
         k, v = self.kv_up(c_kv).split(self.config.n_embd, dim=2)
         k = k.view(B, -1, self.n_head, self.head_dim).transpose(1, 2)
         v = v.view(B, -1, self.n_head, self.head_dim).transpose(1, 2)
+
+        if self.is_rope:
+            pos = self.cache.pos
+            q = self.apply_rope(q, pos, is_before_cache=False)
+            k = self.apply_rope(k, pos, is_before_cache=False)
 
         return self._causal_attention(q, k, v, B, T, C)
 
