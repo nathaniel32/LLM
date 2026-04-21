@@ -43,7 +43,7 @@ class Main:
         
         # create a from-scratch initialized minGPT model
         config = ModelConfig(**config_args)
-        model = GPT(config, attn_type="mha")
+        model = GPT(config, attn_type="mha", is_pos_emb=True)
         sd = model.state_dict()
         sd_keys = sd.keys()
         sd_keys = [k for k in sd_keys if not k.endswith('.attn.bias')] # discard this mask / buffer, not a param
@@ -82,7 +82,7 @@ class Main:
         
         checkpoint = torch.load(ckpt_path, map_location=self.device)
         gptconf = ModelConfig(**checkpoint['model_args'])
-        model = GPT(gptconf, attn_type)
+        model = GPT(gptconf, attn_type, is_pos_emb=False)
         state_dict = checkpoint['model']
         unwanted_prefix = '_orig_mod.'
         for k,v in list(state_dict.items()):
@@ -193,6 +193,7 @@ class Main:
 import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("--no-cache", action="store_false", dest="use_cache")
+parser.add_argument("--print-out", action="store_true", dest="print_out")
 parser.add_argument("--max_new_tokens", type=int, default=100000)
 parser.add_argument("--model_type", type=str, default="small")
 parser.add_argument("--attn_type", type=str, default="mha")
@@ -205,11 +206,13 @@ print(vars(args))
 main = Main(use_cache=args.use_cache)
 text, y = main.run(args.max_new_tokens, args.model_type, args.attn_type, args.start, pretrained=args.pretrained)
 
+if args.print_out:
+    print(text)
+
 if args.compare:
     main_1 = Main(use_cache=not args.use_cache)
     text_1, y_1 = main_1.run(args.max_new_tokens, args.model_type, args.attn_type, args.start, pretrained=args.pretrained)
     
-    print(text)
     if torch.equal(y, y_1):
         print("== OK ==")
     else:

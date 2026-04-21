@@ -274,13 +274,13 @@ class Block(nn.Module):
 class GPT(nn.Module):
     "Embedding → Block → Block → Block → lm_head"
 
-    def __init__(self, config:ModelConfig, attn_type):
+    def __init__(self, config:ModelConfig, attn_type, is_pos_emb):
         super().__init__()
         self.config = config
-
+        self.is_pos_emb = is_pos_emb
         self.transformer = nn.ModuleDict(dict(
             wte = nn.Embedding(config.vocab_size, config.n_embd), # Weight Token Embedding -> torch.Size([50257, 768])
-            wpe = nn.Embedding(config.block_size, config.n_embd), # Weight Position Embedding -> torch.Size([1024, 768])
+            wpe = nn.Embedding(config.block_size, config.n_embd) if is_pos_emb else None, # Weight Position Embedding -> torch.Size([1024, 768])
             drop = nn.Dropout(config.dropout),
             h = nn.ModuleList([Block(config, attn_type) for _ in range(config.n_layer)]),
             ln_f = LayerNorm(config.n_embd, bias=config.bias),
@@ -306,7 +306,7 @@ class GPT(nn.Module):
         params are actually used as weights in the final layer, so we include them.
         """
         n_params = sum(p.numel() for p in self.parameters())
-        if non_embedding:
+        if non_embedding and self.is_pos_emb:
             n_params -= self.transformer.wpe.weight.numel()
         return n_params
 
@@ -375,22 +375,26 @@ class GPT(nn.Module):
         b, t = idx.size()
         assert t <= self.config.block_size, f"Cannot forward sequence of length {t}, block size is only {self.config.block_size}"
         
-        if use_cache:
-            cache_len = self.transformer.h[0].attn.cache.pos
-            pos = torch.arange(cache_len, cache_len + t, dtype=torch.long, device=device)
-        else:
-            pos = torch.arange(0, t, dtype=torch.long, device=device) # shape (t)
-
-        # idx = tensor([[1169, 7577,  286,  262, 2679, 6056,  389]], device='cuda:0')
-        # pos = tensor([0, 1, 2, 3, 4, 5, 6], device='cuda:0')
-
         # forward the GPT model itself
         tok_emb = self.transformer.wte(idx) # token embeddings of shape (b, t, n_embd) -> torch.Size([1, 7, 768])
-        pos_emb = self.transformer.wpe(pos) # position embeddings of shape (t, n_embd) -> torch.Size([7, 768]) -> gk perlu batch, karena weight posisi antar batch selalu sama
         
-        x = self.transformer.drop(tok_emb + pos_emb) # tok_emb + pos_emb -> dropout | torch.Size([1, 7, 768])
+        if self.is_pos_emb:
+            if use_cache:
+                cache_len = self.transformer.h[0].attn.cache.pos
+                pos = torch.arange(cache_len, cache_len + t, dtype=torch.long, device=device)
+            else:
+                pos = torch.arange(0, t, dtype=torch.long, device=device) # shape (t)
 
-        #print(f"{tok_emb[0][1][2]} + {pos_emb[1][2]} = {tok_emb[0][1][2] + pos_emb[1][2]} == {x[0][1][2]}")
+            # idx = tensor([[1169, 7577,  286,  262, 2679, 6056,  389]], device='cuda:0')
+            # pos = tensor([0, 1, 2, 3, 4, 5, 6], device='cuda:0')
+
+            pos_emb = self.transformer.wpe(pos) # position embeddings of shape (t, n_embd) -> torch.Size([7, 768]) -> gk perlu batch, karena weight posisi antar batch selalu sama
+            x = tok_emb + pos_emb
+            #print(f"{tok_emb[0][1][2]} + {pos_emb[1][2]} = {tok_emb[0][1][2] + pos_emb[1][2]} == {x[0][1][2]}")
+        else:
+            x = tok_emb
+        
+        x = self.transformer.drop(x) # torch.Size([1, 7, 768])
 
         # hidden layer
         for block in self.transformer.h:

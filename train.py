@@ -113,7 +113,7 @@ class Train:
         else:
             print("Initializing a new model from scratch")
         
-        model = GPT(self.config, self.attn_type)
+        model = GPT(self.config, self.attn_type, is_pos_emb=False)
         model.to(self.device)
         optimizer = model.configure_optimizers(weight_decay, self.learning_rate, (beta1, beta2), self.device)
         
