@@ -193,8 +193,6 @@ class Train:
 
             if iter_num % eval_interval == 0:
                 losses = self.estimate_loss(model)
-                print(f"step {iter_num}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
-
                 print({
                     "iter": iter_num,
                     "train/loss": losses['train'],
