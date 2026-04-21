@@ -200,6 +200,7 @@ class Train:
                     "iter": iter_num,
                     "train/loss": losses['train'],
                     "val/loss": losses['val'],
+                    'best/val/loss': best_val_loss,
                     "lr": lr,
                     "mfu": running_mfu*100, # convert to percentage
                 })
