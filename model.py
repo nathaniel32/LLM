@@ -185,11 +185,11 @@ class BaseSelfAttention(nn.Module):
         return torch.stack([x_new, y_new], dim=-1).flatten()
     
     @classmethod
-    def apply_rope(cls, embedding, pos):
-        frequencies, pairs = cls._frequencies_calculation(embedding)
+    def apply_rope(cls, x, pos):
+        frequencies, pairs = cls._frequencies_calculation(x)
         angles = cls._angles_calculation(frequencies, pos)
-        rotated_embedding = cls._rotate_vector(pairs, angles)
-        return rotated_embedding
+        rotated_x = cls._rotate_vector(pairs, angles)
+        return rotated_x
 
 class CausalSelfAttention(BaseSelfAttention):
     
