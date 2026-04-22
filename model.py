@@ -307,14 +307,14 @@ class Block(nn.Module):
         super().__init__()
         self.ln_1 = LayerNorm(config.n_embd, bias=config.bias)
         
-        if attn_type == AttnType.mla:
+        if attn_type == AttnType.MLA:
             self.attn = MultiHeadLatentAttention(config, is_rope)
         else:
-            if attn_type == AttnType.mha:
+            if attn_type == AttnType.MHA:
                 n_kv_head = config.n_head
-            elif attn_type == AttnType.gqa:
+            elif attn_type == AttnType.GQA:
                 n_kv_head=config.gqa_kv_head
-            elif attn_type == AttnType.mqa:
+            elif attn_type == AttnType.MQA:
                 n_kv_head = 1
             
             self.attn = CausalSelfAttention(config, is_rope, n_kv_head=n_kv_head)
@@ -333,7 +333,7 @@ class GPT(nn.Module):
     def __init__(self, config:ModelConfig, attn_type:AttnType, pos_type:PosType):
         super().__init__()
         self.config = config
-        self.is_wpe = True if pos_type == PosType.wpe else False
+        self.is_wpe = True if pos_type == PosType.WPE else False
         print({'is_wpe': self.is_wpe, 'pos_type': pos_type.value})
 
         self.transformer = nn.ModuleDict(dict(
