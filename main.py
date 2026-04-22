@@ -43,7 +43,7 @@ class Main:
         
         # create a from-scratch initialized minGPT model
         config = ModelConfig(**config_args)
-        model = GPT(config, attn_type="mha", is_pos_emb=True)
+        model = GPT(config, attn_type="mha", pos_type="pos_emb")
         sd = model.state_dict()
         sd_keys = sd.keys()
         sd_keys = [k for k in sd_keys if not k.endswith('.attn.bias')] # discard this mask / buffer, not a param
@@ -74,15 +74,15 @@ class Main:
 
         return model
     
-    def from_out(self, model_type, attn_type):
+    def from_out(self, model_type, attn_type, pos_type):
         import os
         
-        out_dir = os.path.join("out", model_type, attn_type)
+        out_dir = os.path.join("out", model_type, attn_type, pos_type)
         ckpt_path = os.path.join(out_dir, 'ckpt.pt')
         
         checkpoint = torch.load(ckpt_path, map_location=self.device)
         gptconf = ModelConfig(**checkpoint['model_args'])
-        model = GPT(gptconf, attn_type, is_pos_emb=False)
+        model = GPT(gptconf, attn_type, pos_type)
         state_dict = checkpoint['model']
         unwanted_prefix = '_orig_mod.'
         for k,v in list(state_dict.items()):
@@ -166,8 +166,8 @@ class Main:
 
         print("Warm-up done.\n")
 
-    def run(self, max_new_tokens, model_type, attn_type, start, temperature=0.8, top_k=200, pretrained=None):
-        model = self.from_out(model_type, attn_type) if pretrained is None else self.from_pretrained(pretrained)
+    def run(self, max_new_tokens, model_type, attn_type, pos_type, start, temperature=0.8, top_k=200, pretrained=None):
+        model = self.from_out(model_type, attn_type, pos_type) if pretrained is None else self.from_pretrained(pretrained)
         model.eval()
         model.to(self.device)
 
@@ -203,15 +203,17 @@ parser.add_argument("--pretrained", type=str)
 args = parser.parse_args()
 print(vars(args))
 
+pos_type = "pos_emb"
+
 main = Main(use_cache=args.use_cache)
-text, y = main.run(args.max_new_tokens, args.model_type, args.attn_type, args.start, pretrained=args.pretrained)
+text, y = main.run(args.max_new_tokens, args.model_type, args.attn_type, pos_type, args.start, pretrained=args.pretrained)
 
 if args.print_out:
     print(text)
 
 if args.compare:
     main_1 = Main(use_cache=not args.use_cache)
-    text_1, y_1 = main_1.run(args.max_new_tokens, args.model_type, args.attn_type, args.start, pretrained=args.pretrained)
+    text_1, y_1 = main_1.run(args.max_new_tokens, args.model_type, args.attn_type, pos_type, args.start, pretrained=args.pretrained)
     
     if torch.equal(y, y_1):
         print("== OK ==")
