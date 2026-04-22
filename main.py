@@ -216,7 +216,7 @@ if args.print_out:
 
 if args.compare:
     main_1 = Main(use_cache=not args.use_cache)
-    text_1, y_1 = main_1.run(args.max_new_tokens, args.model_type, AttnType[args.attn_type], PosType[args.pos_type], args.start, pretrained=args.pretrained)
+    text_1, y_1 = main_1.run(args.max_new_tokens, args.model_type, AttnType(args.attn_type), PosType(args.pos_type), args.start, pretrained=args.pretrained)
     
     if torch.equal(y, y_1):
         print("== OK ==")

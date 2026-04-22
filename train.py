@@ -26,7 +26,7 @@ class Train:
         self.attn_type:AttnType = attn_type
         self.pos_type:PosType = pos_type
 
-        self.out_dir = os.path.join('out', model_type, attn_type.name, pos_type.name)
+        self.out_dir = os.path.join('out', model_type, attn_type.value, pos_type.value)
         self.data_dir = os.path.join('datasets', dataset_type)
         
         self.config = ModelConfig(**env.model_configs[model_type])
@@ -286,5 +286,5 @@ parser.add_argument("--no-resume", action="store_false", dest="resume", default=
 args = parser.parse_args()
 print(vars(args))
 
-train = Train(model_type=args.model_type, attn_type=AttnType[args.attn_type], dataset_type=args.dataset_type, pos_type=PosType[args.pos_type])
+train = Train(model_type=args.model_type, attn_type=AttnType(args.attn_type), dataset_type=args.dataset_type, pos_type=PosType(args.pos_type))
 train.train(resume=args.resume)
