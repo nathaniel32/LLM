@@ -303,18 +303,18 @@ class MLP(nn.Module):
 class Block(nn.Module):
     "attention + MLP + LayerNorm"
 
-    def __init__(self, config:ModelConfig, attn_type, is_rope):
+    def __init__(self, config:ModelConfig, attn_type:AttnType, is_rope):
         super().__init__()
         self.ln_1 = LayerNorm(config.n_embd, bias=config.bias)
         
-        if attn_type == "mla":
+        if attn_type == AttnType.mla:
             self.attn = MultiHeadLatentAttention(config, is_rope)
         else:
-            if attn_type == "mha":
+            if attn_type == AttnType.mha:
                 n_kv_head = config.n_head
-            elif attn_type == "gqa":
+            elif attn_type == AttnType.gqa:
                 n_kv_head=config.gqa_kv_head
-            elif attn_type == "mqa":
+            elif attn_type == AttnType.mqa:
                 n_kv_head = 1
             
             self.attn = CausalSelfAttention(config, is_rope, n_kv_head=n_kv_head)
@@ -330,19 +330,17 @@ class Block(nn.Module):
 class GPT(nn.Module):
     "Embedding → Block → Block → Block → lm_head"
 
-    def __init__(self, config:ModelConfig, attn_type, pos_type):
+    def __init__(self, config:ModelConfig, attn_type:AttnType, pos_type:PosType):
         super().__init__()
         self.config = config
-        self.is_pos_emb = True if pos_type == 'pos_emb' else False
-        if self.is_pos_emb:
-            print("Using Pos Emb")
-        else:
-            print("Using Rope")
+        self.is_wpe = True if pos_type == PosType.wpe else False
+        print({'is_wpe': self.is_wpe, 'pos_type': pos_type.value})
+
         self.transformer = nn.ModuleDict(dict(
             wte = nn.Embedding(config.vocab_size, config.n_embd), # Weight Token Embedding -> torch.Size([50257, 768])
-            wpe = nn.Embedding(config.block_size, config.n_embd) if self.is_pos_emb else None, # Weight Position Embedding -> torch.Size([1024, 768])
+            wpe = nn.Embedding(config.block_size, config.n_embd) if self.is_wpe else None, # Weight Position Embedding -> torch.Size([1024, 768])
             drop = nn.Dropout(config.dropout),
-            h = nn.ModuleList([Block(config, attn_type, is_rope=not self.is_pos_emb) for _ in range(config.n_layer)]),
+            h = nn.ModuleList([Block(config, attn_type, is_rope=not self.is_wpe) for _ in range(config.n_layer)]),
             ln_f = LayerNorm(config.n_embd, bias=config.bias),
         ))
         self.lm_head = nn.Linear(config.n_embd, config.vocab_size, bias=False) # torch.Size([50257, 768]) | 768 input features & 50257 output features
@@ -366,7 +364,7 @@ class GPT(nn.Module):
         params are actually used as weights in the final layer, so we include them.
         """
         n_params = sum(p.numel() for p in self.parameters())
-        if non_embedding and self.is_pos_emb:
+        if non_embedding and self.is_wpe:
             n_params -= self.transformer.wpe.weight.numel()
         return n_params
 
@@ -438,7 +436,7 @@ class GPT(nn.Module):
         # forward the GPT model itself
         tok_emb = self.transformer.wte(idx) # token embeddings of shape (b, t, n_embd) -> torch.Size([1, 7, 768])
         
-        if self.is_pos_emb:
+        if self.is_wpe:
             if use_cache:
                 cache_len = self.transformer.h[0].attn.cache.pos
                 pos = torch.arange(cache_len, cache_len + t, dtype=torch.long, device=device)
