@@ -10,7 +10,7 @@ import time
 import env
 
 class Train:
-    def __init__(self, model_type, attn_type, dataset_type):
+    def __init__(self, model_type, attn_type, dataset_type, pos_type):
         seed = 1337
         torch.manual_seed(seed)
         torch.cuda.manual_seed(seed)
@@ -23,8 +23,9 @@ class Train:
         self.ctx = nullcontext() if self.device == 'cpu' else torch.amp.autocast(device_type=self.device, dtype=ptdtype)
 
         self.attn_type = attn_type
+        self.pos_type = pos_type
 
-        self.out_dir = os.path.join('out', model_type, attn_type)
+        self.out_dir = os.path.join('out', model_type, attn_type, pos_type)
         self.data_dir = os.path.join('datasets', dataset_type)
         
         self.config = ModelConfig(**env.model_configs[model_type])
@@ -113,7 +114,7 @@ class Train:
         else:
             print("Initializing a new model from scratch")
         
-        model = GPT(self.config, self.attn_type, is_pos_emb=False)
+        model = GPT(self.config, self.attn_type, pos_type=self.pos_type)
         model.to(self.device)
         optimizer = model.configure_optimizers(weight_decay, self.learning_rate, (beta1, beta2), self.device)
         
@@ -277,5 +278,5 @@ parser.add_argument("--no-resume", action="store_false", dest="resume", default=
 args = parser.parse_args()
 print(vars(args))
 
-train = Train(model_type=args.model_type, attn_type=args.attn_type, dataset_type=args.dataset_type)
+train = Train(model_type=args.model_type, attn_type=args.attn_type, dataset_type=args.dataset_type, pos_type="pos_emb")
 train.train(resume=args.resume)
