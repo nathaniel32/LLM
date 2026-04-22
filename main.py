@@ -4,6 +4,7 @@ from contextlib import nullcontext
 from model import GPT, ModelConfig
 import tiktoken
 from benchmark import Benchmark
+from env import AttnType, PosType
 
 class Main:
     def __init__(self, use_cache=False, stream=False):
@@ -74,10 +75,10 @@ class Main:
 
         return model
     
-    def from_out(self, model_type, attn_type, pos_type):
+    def from_out(self, model_type, attn_type:AttnType, pos_type:PosType):
         import os
         
-        out_dir = os.path.join("out", model_type, attn_type, pos_type)
+        out_dir = os.path.join("out", model_type, attn_type.value, pos_type.value)
         ckpt_path = os.path.join(out_dir, 'ckpt.pt')
         
         checkpoint = torch.load(ckpt_path, map_location=self.device)
@@ -169,7 +170,7 @@ class Main:
 
         print("Warm-up done.\n")
 
-    def run(self, max_new_tokens, model_type, attn_type, pos_type, start, temperature=0.8, top_k=200, pretrained=None):
+    def run(self, max_new_tokens, model_type, attn_type:AttnType, pos_type:PosType, start, temperature=0.8, top_k=200, pretrained=None):
         model = self.from_out(model_type, attn_type, pos_type) if pretrained is None else self.from_pretrained(pretrained)
         model.eval()
         model.to(self.device)
@@ -206,17 +207,17 @@ parser.add_argument("--pretrained", type=str)
 args = parser.parse_args()
 print(vars(args))
 
-pos_type = "pos_emb"
+args.pos_type = "wpe"
 
 main = Main(use_cache=args.use_cache)
-text, y = main.run(args.max_new_tokens, args.model_type, args.attn_type, pos_type, args.start, pretrained=args.pretrained)
+text, y = main.run(args.max_new_tokens, args.model_type, AttnType[args.attn_type], PosType[args.pos_type], args.start, pretrained=args.pretrained)
 
 if args.print_out:
     print(text)
 
 if args.compare:
     main_1 = Main(use_cache=not args.use_cache)
-    text_1, y_1 = main_1.run(args.max_new_tokens, args.model_type, args.attn_type, pos_type, args.start, pretrained=args.pretrained)
+    text_1, y_1 = main_1.run(args.max_new_tokens, args.model_type, AttnType[args.attn_type], PosType[args.pos_type], args.start, pretrained=args.pretrained)
     
     if torch.equal(y, y_1):
         print("== OK ==")
