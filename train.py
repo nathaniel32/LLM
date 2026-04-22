@@ -111,6 +111,10 @@ class Train:
                 bias=checkpoint_model_args["bias"],
                 gqa_kv_head=checkpoint_model_args["gqa_kv_head"])
             state_dict = checkpoint['model']
+            self.attn_type = checkpoint['attn_type']
+            self.pos_type = checkpoint['pos_type']
+            
+            print({'attn_type': self.attn_type, 'pos_type': self.pos_type})
         else:
             print("Initializing a new model from scratch")
         
@@ -213,7 +217,9 @@ class Train:
                         'optimizer': optimizer.state_dict(),
                         'model_args': self.config.to_dict(),
                         'iter_num': iter_num,
-                        'best_val_loss': best_val_loss
+                        'best_val_loss': best_val_loss,
+                        'attn_type': self.attn_type,
+                        'pos_type': self.pos_type
                     }
                     save_dir = os.path.join(self.out_dir)
                     print(f"saving checkpoint to {save_dir}")
