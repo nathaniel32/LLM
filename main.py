@@ -92,7 +92,7 @@ class Main:
             if k.startswith(unwanted_prefix):
                 state_dict[k[len(unwanted_prefix):]] = state_dict.pop(k)
         model.load_state_dict(state_dict)
-        print({'attn_type': attn_type, 'pos_type': pos_type})
+        print({'attn_type': attn_type.value, 'pos_type': pos_type.value})
         return model
     
     @torch.no_grad()
