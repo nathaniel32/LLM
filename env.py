@@ -1,14 +1,14 @@
 from enum import Enum
 
 class AttnType(Enum):
-    mha = "MHA"
-    gqa = "GQA"
-    mqa = "MQA"
-    mla = "MLA"
+    MHA = "mha"
+    GQA = "gqa"
+    MQA = "mqa"
+    MLA = "mla"
 
 class PosType(Enum):
-    wpe = "WPe"
-    rope = "RoPE"
+    WPE = "wpe"
+    ROPE = "rope"
 
 model_configs = {
     'small': dict(block_size=1024, vocab_size=50257, n_layer=12, n_head=12, n_embd=768,  dropout=0.0, bias=True, gqa_kv_head=4),
