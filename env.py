@@ -1,6 +1,14 @@
-#config = ModelConfig(block_size=256, vocab_size=50257, n_layer=6, n_head=12, n_embd=384, dropout=0.0, bias=True)
-#config = ModelConfig(block_size=1024, vocab_size=50257, n_layer=12, n_head=12, n_embd=768, dropout=0.0, bias=True)
-#config = ModelConfig(block_size=1024, vocab_size=50257, n_layer=24, n_head=16, n_embd=1536, dropout=0.0, bias=True)
+from enum import Enum
+
+class AttnType(Enum):
+    mha = "MHA"
+    gqa = "GQA"
+    mqa = "MQA"
+    mla = "MLA"
+
+class PosType(Enum):
+    wpe = "WPe"
+    rope = "RoPE"
 
 model_configs = {
     'small': dict(block_size=1024, vocab_size=50257, n_layer=12, n_head=12, n_embd=768,  dropout=0.0, bias=True, gqa_kv_head=4),
