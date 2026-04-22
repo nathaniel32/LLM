@@ -173,8 +173,8 @@ class BaseSelfAttention(nn.Module):
         seq_len  = x.shape[-2]
         device   = x.device
         
-        # after cache --> full token seq
-        # before cache or seq_len > 1 --> start token
+        # after_cache and seq=1 --> pos-1
+        # seq_len > 1 --> full token
         is_full_seq = seq_len > 1
         pos_start = 0 if is_full_seq else (pos if is_before_cache else pos-1)
         pos_end = pos_start + seq_len
