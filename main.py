@@ -201,13 +201,12 @@ parser.add_argument("--print-out", action="store_true", dest="print_out")
 parser.add_argument("--max_new_tokens", type=int, default=100000)
 parser.add_argument("--model_type", type=str, default="small")
 parser.add_argument("--attn_type", type=str, default="mha")
+parser.add_argument("--pos_type", type=str, default="wpe")
 parser.add_argument("--start", type=str, default="the colors of the German flag are")
 parser.add_argument("--compare", action="store_true")
 parser.add_argument("--pretrained", type=str)
 args = parser.parse_args()
 print(vars(args))
-
-args.pos_type = "wpe"
 
 main = Main(use_cache=args.use_cache)
 text, y = main.run(args.max_new_tokens, args.model_type, AttnType[args.attn_type], PosType[args.pos_type], args.start, pretrained=args.pretrained)

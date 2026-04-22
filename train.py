@@ -23,8 +23,8 @@ class Train:
         ptdtype = {'float32': torch.float32, 'bfloat16': torch.bfloat16, 'float16': torch.float16}[self.dtype]
         self.ctx = nullcontext() if self.device == 'cpu' else torch.amp.autocast(device_type=self.device, dtype=ptdtype)
 
-        self.attn_type = attn_type
-        self.pos_type = pos_type
+        self.attn_type:AttnType = attn_type
+        self.pos_type:PosType = pos_type
 
         self.out_dir = os.path.join('out', model_type, attn_type.name, pos_type.name)
         self.data_dir = os.path.join('datasets', dataset_type)
@@ -115,7 +115,7 @@ class Train:
             self.attn_type = checkpoint['attn_type']
             self.pos_type = checkpoint['pos_type']
             
-            print({'attn_type': self.attn_type, 'pos_type': self.pos_type})
+            print({'attn_type': self.attn_type.value, 'pos_type': self.pos_type.value})
         else:
             print("Initializing a new model from scratch")
         
@@ -280,10 +280,11 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("--model_type", type=str, default="small")
 parser.add_argument("--attn_type", type=str, default="mha")
+parser.add_argument("--pos_type", type=str, default="wpe")
 parser.add_argument("--dataset_type", type=str, default="shakespeare")
 parser.add_argument("--no-resume", action="store_false", dest="resume", default=True)
 args = parser.parse_args()
 print(vars(args))
 
-train = Train(model_type=args.model_type, attn_type=AttnType[args.attn_type], dataset_type=args.dataset_type, pos_type=PosType.wpe)
+train = Train(model_type=args.model_type, attn_type=AttnType[args.attn_type], dataset_type=args.dataset_type, pos_type=PosType[args.pos_type])
 train.train(resume=args.resume)
