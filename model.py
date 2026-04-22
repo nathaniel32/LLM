@@ -174,9 +174,9 @@ class BaseSelfAttention(nn.Module):
         device   = x.device
         
         # after cache --> full token seq
-        # before cache and seq_len > 1 --> start token
-        is_full_seq = not is_before_cache and seq_len > 1
-        pos_start = 0 if is_full_seq else pos - 1
+        # before cache or seq_len > 1 --> start token
+        is_full_seq = seq_len > 1
+        pos_start = 0 if is_full_seq else (pos if is_before_cache else pos-1)
         pos_end = pos_start + seq_len
 
         # Buat [seq_len, head_dim//2], langsung di device yang benar
@@ -184,9 +184,9 @@ class BaseSelfAttention(nn.Module):
         pos_ids = torch.arange(pos_start, pos_end, device=device).float()   # [seq_len]
         angles  = torch.outer(pos_ids, freqs)                               # [seq_len, d//2]
         
-        #print(x.shape[-2])
-        #print(pos_ids)
-        #print("...."*10)
+        print(x.shape[-2])
+        print(pos_ids)
+        print("...."*10)
 
         cos_a = torch.cos(angles)  # [seq_len, d//2]
         sin_a = torch.sin(angles)
