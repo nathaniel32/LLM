@@ -184,9 +184,9 @@ class BaseSelfAttention(nn.Module):
         pos_ids = torch.arange(pos_start, pos_end, device=device).float()   # [seq_len]
         angles  = torch.outer(pos_ids, freqs)                               # [seq_len, d//2]
         
-        print(x.shape[-2])
-        print(pos_ids)
-        print("...."*10)
+        #print(x.shape[-2])
+        #print(pos_ids)
+        #print("...."*10)
 
         cos_a = torch.cos(angles)  # [seq_len, d//2]
         sin_a = torch.sin(angles)
