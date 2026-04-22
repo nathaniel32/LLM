@@ -209,7 +209,7 @@ args = parser.parse_args()
 print(vars(args))
 
 main = Main(use_cache=args.use_cache)
-text, y = main.run(args.max_new_tokens, args.model_type, AttnType[args.attn_type], PosType[args.pos_type], args.start, pretrained=args.pretrained)
+text, y = main.run(args.max_new_tokens, args.model_type, AttnType(args.attn_type), PosType(args.pos_type), args.start, pretrained=args.pretrained)
 
 if args.print_out:
     print(text)
