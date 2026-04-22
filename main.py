@@ -82,6 +82,8 @@ class Main:
         
         checkpoint = torch.load(ckpt_path, map_location=self.device)
         gptconf = ModelConfig(**checkpoint['model_args'])
+        attn_type = checkpoint['attn_type']
+        pos_type = checkpoint['pos_type']
         model = GPT(gptconf, attn_type, pos_type)
         state_dict = checkpoint['model']
         unwanted_prefix = '_orig_mod.'
@@ -89,6 +91,7 @@ class Main:
             if k.startswith(unwanted_prefix):
                 state_dict[k[len(unwanted_prefix):]] = state_dict.pop(k)
         model.load_state_dict(state_dict)
+        print({'attn_type': attn_type, 'pos_type': pos_type})
         return model
     
     @torch.no_grad()
