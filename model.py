@@ -63,22 +63,35 @@ class KVCache(BaseKVCache):
 
         return self.k[:, :, :self.pos, :], self.v[:, :, :self.pos, :]
 
-class LatentKVCache(BaseKVCache):
-    def __init__(self, block_size):
+class MLAKVCache(BaseKVCache):
+    """Cache untuk efficient MLA — menyimpan kv_latent dan k_pe, bukan full k,v"""
+    def __init__(self, block_size, kv_lora_dim, qk_rope_head_dim):
         super().__init__(block_size)
-        self.c_kv: torch.Tensor | None = None
+        self.kv_lora_dim = kv_lora_dim
+        self.qk_rope_head_dim = qk_rope_head_dim
+        self.kv_cache: torch.Tensor | None = None  # (B, T, kv_lora_dim)
+        self.pe_cache: torch.Tensor | None = None  # (B, T, qk_rope_head_dim)
+        self.pos = 0
 
-    def update(self, c_kv: torch.Tensor):
-        B, T, latent_dim = c_kv.shape
+    def update(self, kv_latent: torch.Tensor, k_pe: torch.Tensor):
+        """
+        kv_latent: (B, T, kv_lora_dim)
+        k_pe:      (B, T, qk_rope_head_dim)  -- sudah di-RoPE, squeeze dari (B,1,T,rope_dim)
+        """
+        B, T, _ = kv_latent.shape
 
-        if self.c_kv is None or self.c_kv.shape[0] != B:
-            self.c_kv = torch.zeros((B, self.block_size, latent_dim), device=c_kv.device, dtype=c_kv.dtype)
+        if self.kv_cache is None or self.kv_cache.shape[0] != B:
+            self.kv_cache = torch.zeros(B, self.block_size, self.kv_lora_dim,
+                                        device=kv_latent.device, dtype=kv_latent.dtype)
+            self.pe_cache = torch.zeros(B, self.block_size, self.qk_rope_head_dim,
+                                        device=k_pe.device, dtype=k_pe.dtype)
             self.pos = 0
 
-        self.c_kv[:, self.pos:self.pos + T, :] = c_kv
+        self.kv_cache[:, self.pos:self.pos + T, :] = kv_latent
+        self.pe_cache[:, self.pos:self.pos + T, :] = k_pe
         self.pos += T
 
-        return self.c_kv[:, :self.pos, :]
+        return self.kv_cache[:, :self.pos, :], self.pe_cache[:, :self.pos, :]
 
 class LayerNorm(nn.Module):
     """ LayerNorm but with an optional bias. PyTorch doesn't support simply bias=False """
@@ -244,11 +257,10 @@ class CausalSelfAttention(BaseSelfAttention):
         return y
 
 class MultiHeadLatentAttention(BaseSelfAttention):
-    def __init__(self, config:ModelConfig, is_rope):
+    def __init__(self, config:ModelConfig, is_rope, efficient: bool = False):
         super().__init__(config, is_rope)
-
-        self.cache = KVCache(config.block_size)
-
+        self.efficient = efficient
+        
         self.qk_nope_head_dim = self.head_dim // 4
         self.qk_rope_head_dim = self.head_dim // 2
         self.qk_head_dim = self.qk_nope_head_dim + self.qk_rope_head_dim
@@ -256,6 +268,8 @@ class MultiHeadLatentAttention(BaseSelfAttention):
 
         self.q_lora_dim = 0
         self.kv_lora_dim = config.n_embd // 8
+
+        self.cache = KVCache(config.block_size) if not efficient else MLAKVCache(config.block_size, self.kv_lora_dim, self.qk_rope_head_dim)
 
         # Query compression
         if self.q_lora_dim == 0:
