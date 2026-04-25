@@ -247,18 +247,18 @@ class MultiHeadLatentAttention(BaseSelfAttention):
 
         self.cache = LatentKVCache(config.block_size)
 
-        self.q_latent_dim = 128
-        self.kv_latent_dim = 64
+        q_lora_dim = 128
+        kv_lora_dim = 64
 
         # Query compression
-        self.q_down = nn.Linear(config.n_embd, self.q_latent_dim, bias=config.bias)
-        self.q_norm = RMSNorm(self.q_latent_dim)
-        self.q_up = nn.Linear(self.q_latent_dim, config.n_embd, bias=config.bias)
+        self.q_down = nn.Linear(config.n_embd, q_lora_dim, bias=config.bias)
+        self.q_norm = RMSNorm(q_lora_dim)
+        self.q_up = nn.Linear(q_lora_dim, config.n_embd, bias=config.bias)
 
         # KV compression
-        self.kv_down = nn.Linear(config.n_embd, self.kv_latent_dim, bias=config.bias)
-        self.kv_norm = RMSNorm(self.kv_latent_dim)
-        self.kv_up = nn.Linear(self.kv_latent_dim, config.n_embd * 2, bias=config.bias)
+        self.kv_down = nn.Linear(config.n_embd, kv_lora_dim, bias=config.bias)
+        self.kv_norm = RMSNorm(kv_lora_dim)
+        self.kv_up = nn.Linear(kv_lora_dim, config.n_embd * 2, bias=config.bias)
 
     def forward(self, x:torch.Tensor, use_cache: bool = False):
         B, T, C = x.size()
