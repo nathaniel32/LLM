@@ -49,11 +49,12 @@ class KVCache(BaseKVCache):
         self.v: torch.Tensor | None = None
 
     def update(self, k: torch.Tensor, v: torch.Tensor):
-        B, nh, T, hs = k.shape
+        B, nh, T, khs = k.shape
+        _, _, _, vhs = v.shape
 
         if self.k is None or self.k.shape[0] != B or self.k.shape[1] != nh:
-            self.k = torch.zeros((B, nh, self.block_size, hs), device=k.device, dtype=k.dtype)
-            self.v = torch.zeros((B, nh, self.block_size, hs), device=v.device, dtype=v.dtype)
+            self.k = torch.zeros((B, nh, self.block_size, khs), device=k.device, dtype=k.dtype)
+            self.v = torch.zeros((B, nh, self.block_size, vhs), device=v.device, dtype=v.dtype)
             self.pos = 0
 
         self.k[:, :, self.pos:self.pos + T, :] = k
@@ -248,18 +249,21 @@ class MultiHeadLatentAttention(BaseSelfAttention):
 
         self.cache = KVCache(config.block_size)
 
-        q_lora_dim = 256
-        self.kv_lora_dim = 256
-
         self.qk_nope_head_dim = 128
         self.qk_rope_head_dim = 64
         self.qk_head_dim = self.qk_nope_head_dim + self.qk_rope_head_dim # 192
         self.v_head_dim = 128
 
+        self.q_lora_dim = 0
+        self.kv_lora_dim = 192
+
         # Query compression
-        self.q_down = nn.Linear(config.n_embd, q_lora_dim, bias=config.bias)
-        self.q_norm = RMSNorm(q_lora_dim)
-        self.q_up = nn.Linear(q_lora_dim, self.n_head * self.qk_head_dim, bias=config.bias)
+        if self.q_lora_dim == 0:
+            self.wq = nn.Linear(config.n_embd, self.n_head * self.qk_head_dim)
+        else:
+            self.q_down = nn.Linear(config.n_embd, self.q_lora_dim, bias=config.bias)
+            self.q_norm = RMSNorm(self.q_lora_dim)
+            self.q_up = nn.Linear(self.q_lora_dim, self.n_head * self.qk_head_dim, bias=config.bias)
 
         # KV compression
         self.kv_down = nn.Linear(config.n_embd, self.kv_lora_dim + self.qk_rope_head_dim, bias=config.bias)
@@ -272,10 +276,16 @@ class MultiHeadLatentAttention(BaseSelfAttention):
         B, T, C = x.size()
         pos = self.cache.pos
 
-        # Q: down -> norm -> up
-        c_q = self.q_norm(self.q_down(x))
-        q = self.q_up(c_q).view(B, T, self.n_head, self.qk_head_dim).transpose(1, 2)
+        if self.q_lora_dim == 0:
+            q = self.wq(x)
+        else:
+            # Q: down -> norm -> up
+            c_q = self.q_norm(self.q_down(x))
+            q = self.q_up(c_q)
+
+        q = q.view(B, T, self.n_head, self.qk_head_dim).transpose(1, 2)
         # q: (B, n_head, T, qk_head_dim)
+        
         q_nope, q_pe = torch.split(q, [self.qk_nope_head_dim, self.qk_rope_head_dim], dim=-1)
         q_pe = self.apply_rope(q_pe, pos)
         # q_pe: (B, n_head, T, rope_dim)
@@ -299,6 +309,7 @@ class MultiHeadLatentAttention(BaseSelfAttention):
         k = torch.cat([k_nope, k_pe], dim=-1)          # (B, n_head, T, qk_head_dim)
 
         if use_cache:
+            #print(q.shape, k.shape, v.shape)
             k, v = self.cache.update(k, v)
 
         y = self._causal_attention(q, k, v, T, self.qk_head_dim)
