@@ -257,7 +257,7 @@ class CausalSelfAttention(BaseSelfAttention):
         return y
 
 class MultiHeadLatentAttention(BaseSelfAttention):
-    def __init__(self, config:ModelConfig, is_rope, efficient: bool = False):
+    def __init__(self, config:ModelConfig, is_rope, efficient=True):
         super().__init__(config, is_rope)
         self.efficient = efficient
         
@@ -309,25 +309,65 @@ class MultiHeadLatentAttention(BaseSelfAttention):
         kv_latent, k_pe = torch.split(c_kv, [self.kv_lora_dim, self.qk_rope_head_dim], dim=-1)
         # k_pe: (B, T, rope_dim) -> (B, 1, T, rope_dim) -> apply rope -> (B, 1, T, rope_dim)
         k_pe = self.apply_rope(k_pe.unsqueeze(1), pos)
-        # expand ke semua head: (B, n_head, T, rope_dim)
-        k_pe = k_pe.expand(-1, self.n_head, -1, -1)
+        
+        if not self.efficient:
+            # expand ke semua head: (B, n_head, T, rope_dim)
+            k_pe = k_pe.expand(-1, self.n_head, -1, -1)
 
-        # KV up-project
-        kv = self.kv_up(self.kv_norm(kv_latent))
-        kv = kv.view(B, T, self.n_head, self.qk_nope_head_dim + self.v_head_dim).transpose(1, 2)
-        # kv: (B, n_head, T, nope_dim + v_dim)
-        k_nope, v = torch.split(kv, [self.qk_nope_head_dim, self.v_head_dim], dim=-1)
+            # KV up-project
+            kv = self.kv_up(self.kv_norm(kv_latent))
+            kv = kv.view(B, T, self.n_head, self.qk_nope_head_dim + self.v_head_dim).transpose(1, 2)
+            # kv: (B, n_head, T, nope_dim + v_dim)
+            k_nope, v = torch.split(kv, [self.qk_nope_head_dim, self.v_head_dim], dim=-1)
 
-        # Gabungkan q dan k
-        q = torch.cat([q_nope, q_pe], dim=-1)          # (B, n_head, T, qk_head_dim)
-        k = torch.cat([k_nope, k_pe], dim=-1)          # (B, n_head, T, qk_head_dim)
+            # Gabungkan q dan k
+            q = torch.cat([q_nope, q_pe], dim=-1)          # (B, n_head, T, qk_head_dim)
+            k = torch.cat([k_nope, k_pe], dim=-1)          # (B, n_head, T, qk_head_dim)
 
-        if use_cache:
-            #print(q.shape, k.shape, v.shape)
-            k, v = self.cache.update(k, v)
+            if use_cache:
+                #print(q.shape, k.shape, v.shape)
+                k, v = self.cache.update(k, v)
 
-        y = self._causal_attention(q, k, v, T, self.qk_head_dim)
+            y = self._causal_attention(q, k, v, T, self.qk_head_dim)
+        else:
+            # ── EFFICIENT PATH ────────────────────────────────────────────────
+            kv_latent_normed = self.kv_norm(kv_latent)          # (B, T, kv_lora_dim)
+            k_pe_2d = k_pe.squeeze(1)                      # (B, T, rope_dim)
 
+            if use_cache:
+                kv_latent_normed, k_pe_2d = self.cache.update(kv_latent_normed, k_pe_2d)
+            # kv_latent_normed: (B, T_full, kv_lora_dim)
+            # k_pe_2d:          (B, T_full, rope_dim)
+
+            # Absorb wkv_b ke q_nope
+            wkv_b = self.kv_up.weight  # (n_head*(nope+v_dim), kv_lora_dim)
+            wkv_b = wkv_b.view(self.n_head, self.qk_nope_head_dim + self.v_head_dim, self.kv_lora_dim)
+            w_k = wkv_b[:, :self.qk_nope_head_dim, :]   # (n_head, nope_dim, kv_lora_dim)
+            w_v = wkv_b[:, self.qk_nope_head_dim:, :]   # (n_head, v_dim,   kv_lora_dim)
+
+            # q_nope: (B, n_head, T, nope_dim) → projected ke latent space
+            q_latent = torch.einsum("bnsd,hdc->bnsc", q_nope, w_k)
+            # (B, n_head, T, kv_lora_dim)
+
+            softmax_scale = self.qk_head_dim ** -0.5
+            scores_nope = torch.einsum("bnsc,btc->bnst", q_latent, kv_latent_normed)
+            scores_rope = torch.einsum("bnsr,btr->bnst", q_pe,     k_pe_2d)
+            scores = (scores_nope + scores_rope) * softmax_scale
+            # scores: (B, n_head, T, T_full)
+
+            # Causal mask
+            T_full = scores.shape[-1]
+            if T > 1:
+                mask = torch.tril(torch.ones(T, T_full, device=x.device)).unsqueeze(0).unsqueeze(0)
+                scores = scores.masked_fill(mask == 0, float('-inf'))
+
+            attn = torch.softmax(scores, dim=-1)
+            attn = self.attn_dropout(attn)
+
+            out_latent = torch.einsum("bnst,btc->bnsc", attn,       kv_latent_normed)
+            y           = torch.einsum("bnsc,hdc->bnsd", out_latent, w_v)
+            # y: (B, n_head, T, v_head_dim)
+        
         # re-assemble all head outputs side by side
         y = y.transpose(1, 2).contiguous().view(B, T, self.n_head * self.v_head_dim)
 
