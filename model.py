@@ -249,13 +249,13 @@ class MultiHeadLatentAttention(BaseSelfAttention):
 
         self.cache = KVCache(config.block_size)
 
-        self.qk_nope_head_dim = 128
-        self.qk_rope_head_dim = 64
-        self.qk_head_dim = self.qk_nope_head_dim + self.qk_rope_head_dim # 192
-        self.v_head_dim = 128
+        self.qk_nope_head_dim = self.head_dim // 4
+        self.qk_rope_head_dim = self.head_dim // 2
+        self.qk_head_dim = self.qk_nope_head_dim + self.qk_rope_head_dim
+        self.v_head_dim = self.head_dim // 2
 
         self.q_lora_dim = 0
-        self.kv_lora_dim = 192
+        self.kv_lora_dim = config.n_embd // 8
 
         # Query compression
         if self.q_lora_dim == 0:
