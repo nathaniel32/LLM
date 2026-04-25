@@ -129,13 +129,13 @@ class BaseSelfAttention(nn.Module):
             self.register_buffer("bias", torch.tril(torch.ones(config.block_size, config.block_size)).view(1, 1, config.block_size, config.block_size))
             #self.bias = torch.tril(torch.ones(config.block_size, config.block_size)).view(1, 1, config.block_size, config.block_size).to('cuda') # torch.Size([1, 1, 1024, 1024])
 
-    def _causal_attention(self, q, k, v, T):
+    def _causal_attention(self, q, k, v, T, head_dim):
         if self.flash:
             is_causal = T > 1
             y = torch.nn.functional.scaled_dot_product_attention(q, k, v, attn_mask=None, dropout_p=self.config.dropout if self.training else 0, is_causal=is_causal)
         else:
             # Attention
-            att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(self.head_dim)) # torch.Size([1, 12, 7, 7])
+            att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(head_dim)) # torch.Size([1, 12, 7, 7])
 
             if T > 1:
                 T_full = k.size(2)
@@ -155,7 +155,7 @@ class BaseSelfAttention(nn.Module):
         return base ** (-2 * i / head_dim)
 
     @classmethod
-    def apply_rope(cls, x: torch.Tensor, pos, is_before_cache):
+    def apply_rope(cls, x: torch.Tensor, pos):
         """
         x:   [batch, heads, seq_len, head_dim]
         pos: int — posisi awal (default 0, saat KV-cache bisa > 0)
@@ -164,10 +164,9 @@ class BaseSelfAttention(nn.Module):
         seq_len  = x.shape[-2]
         device   = x.device
         
-        # after_cache and seq=1 --> pos-1
         # seq_len > 1 --> full token
         is_full_seq = seq_len > 1
-        pos_start = 0 if is_full_seq else (pos if is_before_cache else pos-1)
+        pos_start = 0 if is_full_seq else pos
         pos_end = pos_start + seq_len
 
         # Buat [seq_len, head_dim//2], langsung di device yang benar
@@ -222,8 +221,8 @@ class CausalSelfAttention(BaseSelfAttention):
 
         if self.is_rope:
             pos = self.cache.pos
-            q = self.apply_rope(q, pos, is_before_cache=True)
-            k = self.apply_rope(k, pos, is_before_cache=True)
+            q = self.apply_rope(q, pos)
+            k = self.apply_rope(k, pos)
 
         if use_cache:
             k, v = self.cache.update(k, v)
@@ -232,7 +231,7 @@ class CausalSelfAttention(BaseSelfAttention):
         k = k.repeat_interleave(self.kv_repeat, dim=1)  # (B, n_head, T_full, head_dim)
         v = v.repeat_interleave(self.kv_repeat, dim=1)
 
-        y = self._causal_attention(q, k, v, T)
+        y = self._causal_attention(q, k, v, T, self.head_dim)
 
         # re-assemble all head outputs side by side
         y = y.transpose(1, 2).contiguous().view(B, T, C)
@@ -278,14 +277,14 @@ class MultiHeadLatentAttention(BaseSelfAttention):
         q = self.q_up(c_q).view(B, T, self.n_head, self.qk_head_dim).transpose(1, 2)
         # q: (B, n_head, T, qk_head_dim)
         q_nope, q_pe = torch.split(q, [self.qk_nope_head_dim, self.qk_rope_head_dim], dim=-1)
-        q_pe = self.apply_rope(q_pe, pos, is_before_cache=True)
+        q_pe = self.apply_rope(q_pe, pos)
         # q_pe: (B, n_head, T, rope_dim)
 
         # KV: down -> split rope vs lora
         c_kv = self.kv_down(x)  # (B, T, kv_lora_dim + rope_dim)
         kv_latent, k_pe = torch.split(c_kv, [self.kv_lora_dim, self.qk_rope_head_dim], dim=-1)
         # k_pe: (B, T, rope_dim) -> (B, 1, T, rope_dim) -> apply rope -> (B, 1, T, rope_dim)
-        k_pe = self.apply_rope(k_pe.unsqueeze(1), pos, is_before_cache=True)
+        k_pe = self.apply_rope(k_pe.unsqueeze(1), pos)
         # expand ke semua head: (B, n_head, T, rope_dim)
         k_pe = k_pe.expand(-1, self.n_head, -1, -1)
 
@@ -302,7 +301,7 @@ class MultiHeadLatentAttention(BaseSelfAttention):
         if use_cache:
             k, v = self.cache.update(k, v)
 
-        y = self._causal_attention(q, k, v, T)
+        y = self._causal_attention(q, k, v, T, self.qk_head_dim)
 
         # re-assemble all head outputs side by side
         y = y.transpose(1, 2).contiguous().view(B, T, self.n_head * self.v_head_dim)
