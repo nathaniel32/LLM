@@ -117,9 +117,6 @@ class BaseSelfAttention(nn.Module):
         self.n_head = config.n_head
         self.head_dim = config.n_embd // config.n_head # 64
 
-        # output projection
-        self.c_proj = nn.Linear(config.n_embd, config.n_embd, bias=config.bias) # torch.Size([768]) -> torch.Size([768])
-
         # regularization
         self.attn_dropout = nn.Dropout(config.dropout)
         self.resid_dropout = nn.Dropout(config.dropout)
@@ -132,7 +129,7 @@ class BaseSelfAttention(nn.Module):
             self.register_buffer("bias", torch.tril(torch.ones(config.block_size, config.block_size)).view(1, 1, config.block_size, config.block_size))
             #self.bias = torch.tril(torch.ones(config.block_size, config.block_size)).view(1, 1, config.block_size, config.block_size).to('cuda') # torch.Size([1, 1, 1024, 1024])
 
-    def _causal_attention(self, q, k, v, B, T, C):
+    def _causal_attention(self, q, k, v, T):
         if self.flash:
             is_causal = T > 1
             y = torch.nn.functional.scaled_dot_product_attention(q, k, v, attn_mask=None, dropout_p=self.config.dropout if self.training else 0, is_causal=is_causal)
@@ -149,13 +146,6 @@ class BaseSelfAttention(nn.Module):
             att = self.attn_dropout(att)
             y = att @ v # (B, nh, T, T) x (B, nh, T, hs) -> (B, nh, T, hs) | torch.Size([1, 12, 7, 7]) * torch.Size([1, 12, 7, 64]) -> torch.Size([1, 12, 7, 64])
         
-        # re-assemble all head outputs side by side
-        y = y.transpose(1, 2).contiguous().view(B, T, C)
-        # 1. torch.Size([1, 12, 7, 64]) -> torch.Size([1, 7, 12, 64])
-        # 2. torch.Size([1, 7, 12, 64]) -> torch.Size([1, 7, 768])
-
-        # output projection
-        y = self.resid_dropout(self.c_proj(y)) # torch.Size([1, 7, 768])
         return y
     
     @staticmethod
@@ -215,6 +205,9 @@ class CausalSelfAttention(BaseSelfAttention):
         self.kv_dim = n_kv_head * self.head_dim
 
         self.c_attn = nn.Linear(config.n_embd, config.n_embd + 2 * self.kv_dim, bias=config.bias)
+
+        # output projection
+        self.c_proj = nn.Linear(config.n_embd, config.n_embd, bias=config.bias) # torch.Size([768]) -> torch.Size([768])
         
     def forward(self, x:torch.Tensor, use_cache: bool = False):
         B, T, C = x.size() # torch.Size([1, 7, 768])
@@ -239,50 +232,84 @@ class CausalSelfAttention(BaseSelfAttention):
         k = k.repeat_interleave(self.kv_repeat, dim=1)  # (B, n_head, T_full, head_dim)
         v = v.repeat_interleave(self.kv_repeat, dim=1)
 
-        return self._causal_attention(q, k, v, B, T, C)
+        y = self._causal_attention(q, k, v, T)
+
+        # re-assemble all head outputs side by side
+        y = y.transpose(1, 2).contiguous().view(B, T, C)
+        # 1. torch.Size([1, 12, 7, 64]) -> torch.Size([1, 7, 12, 64])
+        # 2. torch.Size([1, 7, 12, 64]) -> torch.Size([1, 7, 768])
+
+        # output projection
+        y = self.resid_dropout(self.c_proj(y)) # torch.Size([1, 7, 768])
+        return y
 
 class MultiHeadLatentAttention(BaseSelfAttention):
     def __init__(self, config:ModelConfig, is_rope):
         super().__init__(config, is_rope)
 
-        self.cache = LatentKVCache(config.block_size)
+        self.cache = KVCache(config.block_size)
 
-        q_lora_dim = 128
-        kv_lora_dim = 64
+        q_lora_dim = 256
+        self.kv_lora_dim = 256
+
+        self.qk_nope_head_dim = 128
+        self.qk_rope_head_dim = 64
+        self.qk_head_dim = self.qk_nope_head_dim + self.qk_rope_head_dim # 192
+        self.v_head_dim = 128
 
         # Query compression
         self.q_down = nn.Linear(config.n_embd, q_lora_dim, bias=config.bias)
         self.q_norm = RMSNorm(q_lora_dim)
-        self.q_up = nn.Linear(q_lora_dim, config.n_embd, bias=config.bias)
+        self.q_up = nn.Linear(q_lora_dim, self.n_head * self.qk_head_dim, bias=config.bias)
 
         # KV compression
-        self.kv_down = nn.Linear(config.n_embd, kv_lora_dim, bias=config.bias)
-        self.kv_norm = RMSNorm(kv_lora_dim)
-        self.kv_up = nn.Linear(kv_lora_dim, config.n_embd * 2, bias=config.bias)
+        self.kv_down = nn.Linear(config.n_embd, self.kv_lora_dim + self.qk_rope_head_dim, bias=config.bias)
+        self.kv_norm = RMSNorm(self.kv_lora_dim)
+        self.kv_up = nn.Linear(self.kv_lora_dim, self.n_head * (self.qk_nope_head_dim+self.v_head_dim), bias=config.bias)
 
-    def forward(self, x:torch.Tensor, use_cache: bool = False):
+        self.c_proj = nn.Linear(self.n_head * self.v_head_dim, config.n_embd, bias=config.bias)
+
+    def forward(self, x: torch.Tensor, use_cache: bool = False):
         B, T, C = x.size()
+        pos = self.cache.pos
 
-        # Q: down-project -> normalize -> up-project
+        # Q: down -> norm -> up
         c_q = self.q_norm(self.q_down(x))
-        q = self.q_up(c_q).view(B, T, self.n_head, self.head_dim).transpose(1, 2)
-        
-        # KV: down-project -> normalize -> up-project
-        c_kv = self.kv_norm(self.kv_down(x))
+        q = self.q_up(c_q).view(B, T, self.n_head, self.qk_head_dim).transpose(1, 2)
+        # q: (B, n_head, T, qk_head_dim)
+        q_nope, q_pe = torch.split(q, [self.qk_nope_head_dim, self.qk_rope_head_dim], dim=-1)
+        q_pe = self.apply_rope(q_pe, pos, is_before_cache=True)
+        # q_pe: (B, n_head, T, rope_dim)
+
+        # KV: down -> split rope vs lora
+        c_kv = self.kv_down(x)  # (B, T, kv_lora_dim + rope_dim)
+        kv_latent, k_pe = torch.split(c_kv, [self.kv_lora_dim, self.qk_rope_head_dim], dim=-1)
+        # k_pe: (B, T, rope_dim) -> (B, 1, T, rope_dim) -> apply rope -> (B, 1, T, rope_dim)
+        k_pe = self.apply_rope(k_pe.unsqueeze(1), pos, is_before_cache=True)
+        # expand ke semua head: (B, n_head, T, rope_dim)
+        k_pe = k_pe.expand(-1, self.n_head, -1, -1)
+
+        # KV up-project
+        kv = self.kv_up(self.kv_norm(kv_latent))
+        kv = kv.view(B, T, self.n_head, self.qk_nope_head_dim + self.v_head_dim).transpose(1, 2)
+        # kv: (B, n_head, T, nope_dim + v_dim)
+        k_nope, v = torch.split(kv, [self.qk_nope_head_dim, self.v_head_dim], dim=-1)
+
+        # Gabungkan q dan k
+        q = torch.cat([q_nope, q_pe], dim=-1)          # (B, n_head, T, qk_head_dim)
+        k = torch.cat([k_nope, k_pe], dim=-1)          # (B, n_head, T, qk_head_dim)
 
         if use_cache:
-            c_kv = self.cache.update(c_kv)
-        
-        k, v = self.kv_up(c_kv).split(self.config.n_embd, dim=2)
-        k = k.view(B, -1, self.n_head, self.head_dim).transpose(1, 2)
-        v = v.view(B, -1, self.n_head, self.head_dim).transpose(1, 2)
+            k, v = self.cache.update(k, v)
 
-        if self.is_rope:
-            pos = self.cache.pos
-            q = self.apply_rope(q, pos, is_before_cache=False)
-            k = self.apply_rope(k, pos, is_before_cache=False)
+        y = self._causal_attention(q, k, v, T)
 
-        return self._causal_attention(q, k, v, B, T, C)
+        # re-assemble all head outputs side by side
+        y = y.transpose(1, 2).contiguous().view(B, T, self.n_head * self.v_head_dim)
+
+        # output projection
+        y = self.resid_dropout(self.c_proj(y))
+        return y
 
 class MLP(nn.Module):
 
