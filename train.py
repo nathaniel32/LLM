@@ -26,6 +26,11 @@ class TrainConfig:
     warmup_iters: int = 2000
     lr_decay_iters: int = 600000
     weight_decay: float = 1e-1
+    min_lr: float = 6e-5
+    log_interval: int = 1
+    decay_lr: bool = True
+    beta1: float = 0.9
+    beta2: float = 0.95
 
 class Train:
     def __init__(self, arch_config:ArchConfig, train_config:TrainConfig, dataset_type):
@@ -105,9 +110,6 @@ class Train:
         return x, y
     
     def get_model(self, resume=False):
-        beta1 = 0.9
-        beta2 = 0.95
-
         ckpt_path = os.path.join(self.arch_config.out_dir, 'ckpt.pt')
         if not os.path.exists(ckpt_path):
             print("Checkpoint not found!")
@@ -127,7 +129,7 @@ class Train:
         
         model = Transformer(self.config, self.arch_config)
         model.to(self.device)
-        optimizer = model.configure_optimizers(self.train_config.weight_decay, self.train_config.learning_rate, (beta1, beta2), self.device)
+        optimizer = model.configure_optimizers(self.train_config.weight_decay, self.train_config.learning_rate, (self.train_config.beta1, self.train_config.beta2), self.device)
         
         if resume:
             unwanted_prefix = '_orig_mod.'
@@ -155,19 +157,17 @@ class Train:
         
     # learning rate decay scheduler (cosine with warmup)
     def get_lr(self, it):
-        min_lr = 6e-5 # minimum learning rate, should be ~= learning_rate/10 per Chinchilla
-
         # 1) linear warmup for warmup_iters steps
         if it < self.train_config.warmup_iters:
             return self.train_config.learning_rate * (it + 1) / (self.train_config.warmup_iters + 1)
         # 2) if it > lr_decay_iters, return min learning rate
         if it > self.train_config.lr_decay_iters:
-            return min_lr
+            return self.train_config.min_lr
         # 3) in between, use cosine decay down to min learning rate
         decay_ratio = (it - self.train_config.warmup_iters) / (self.train_config.lr_decay_iters - self.train_config.warmup_iters)
         assert 0 <= decay_ratio <= 1
         coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio)) # coeff ranges 0..1
-        return min_lr + coeff * (self.train_config.learning_rate - min_lr)
+        return self.train_config.min_lr + coeff * (self.train_config.learning_rate - self.train_config.min_lr)
     
     # helps estimate an arbitrarily accurate loss over either split using many batches
     @torch.no_grad()
@@ -190,18 +190,15 @@ class Train:
 
         X, Y = self.get_batch('train')
         
-        decay_lr = True # whether to decay the learning rate
         scaler = torch.amp.GradScaler(enabled=(self.train_config.dtype == 'float16'))
         
-        log_interval = 1
-
         patience_counter = 0
         local_iter_num = 0
         running_mfu = -1.0
         
         while iter_num < self.train_config.max_iters:
             # determine and set the learning rate for this iteration
-            lr = self.get_lr(iter_num) if decay_lr else self.train_config.learning_rate
+            lr = self.get_lr(iter_num) if self.train_config.decay_lr else self.train_config.learning_rate
             for param_group in optimizer.param_groups:
                 param_group['lr'] = lr
 
@@ -272,7 +269,7 @@ class Train:
             current_time = time.time()
             delta_time = current_time - previous_time
             
-            if iter_num % log_interval == 0:
+            if iter_num % self.train_config.log_interval == 0:
                 # get loss as float. note: this is a CPU-GPU sync point
                 # scale up to undo the division above, approximating the true total loss (exact would have been a sum)
                 lossf = loss.item() * self.train_config.gradient_accumulation_steps
@@ -303,5 +300,5 @@ print(vars(args))
 
 arch_config = ArchConfig(model_type=args.model_type, attn_type=AttnType(args.attn_type), pos_type=PosType(args.pos_type), norm_type=NormType(args.norm_type))
 
-train = Train(arch_config, dataset_type=args.dataset_type)
+train = Train(arch_config, train_config=TrainConfig(), dataset_type=args.dataset_type)
 train.train(resume=args.resume)
