@@ -18,6 +18,12 @@ class ModelConfig:
     bias: bool
     gqa_kv_head: Optional[int] = None
 
+@dataclass
+class ArchConfig:
+    attn_type: AttnType
+    pos_type: PosType
+    norm_type: NormType
+
 class BaseKVCache(ABC):
     def __init__(self, block_size):
         self.pos = 0
