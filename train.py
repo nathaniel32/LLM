@@ -10,32 +10,43 @@ import time
 import env
 from env import AttnType, PosType, NormType
 from logger import Logger
-from dataclasses import asdict
+from dataclasses import dataclass, asdict
+
+@dataclass
+class TrainConfig:
+    batch_size: int = 2
+    max_iters: int = 50_000
+    gradient_accumulation_steps: int = 5
+    eval_interval: int = 500
+    eval_iters: int = 200
+    learning_rate: float = 6e-4
+    patience: int = 20
+    dtype: str = 'float16'
+    grad_clip: float = 1.0
+    warmup_iters: int = 2000
+    lr_decay_iters: int = 50_000
+    weight_decay: float = 1e-1
 
 class Train:
-    def __init__(self, arch_config:ArchConfig, dataset_type):
+    def __init__(self, arch_config:ArchConfig, train_config:TrainConfig, dataset_type):
         seed = 1337
         torch.manual_seed(seed)
         torch.cuda.manual_seed(seed)
         torch.backends.cuda.matmul.allow_tf32 = True # allow tf32 on matmul
         torch.backends.cudnn.allow_tf32 = True # allow tf32 on cudnn
 
-        self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
-        self.dtype = 'float16'
-        ptdtype = {'float32': torch.float32, 'bfloat16': torch.bfloat16, 'float16': torch.float16}[self.dtype]
-        self.ctx = nullcontext() if self.device == 'cpu' else torch.amp.autocast(device_type=self.device, dtype=ptdtype)
-
         self.arch_config = arch_config
+        self.train_config = train_config
+
+        self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        ptdtype = {'float32': torch.float32, 'bfloat16': torch.bfloat16, 'float16': torch.float16}[self.train_config.dtype]
+        self.ctx = nullcontext() if self.device == 'cpu' else torch.amp.autocast(device_type=self.device, dtype=ptdtype)
 
         self.data_dir = os.path.join('datasets', dataset_type)
         
         self.logger = Logger(out_dir=arch_config.out_dir)
         self.config = ModelConfig(**env.model_configs[arch_config.model_type])
-        
-        self.batch_size = 2
-        self.learning_rate = 6e-4
-        self.eval_iters = 200
-        
+                
         self.headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         }
@@ -83,7 +94,7 @@ class Train:
             data = np.memmap(os.path.join(self.data_dir, 'train.bin'), dtype=np.uint16, mode='r')
         else:
             data = np.memmap(os.path.join(self.data_dir, 'val.bin'), dtype=np.uint16, mode='r')
-        ix = torch.randint(len(data) - self.config.block_size, (self.batch_size,))
+        ix = torch.randint(len(data) - self.config.block_size, (self.train_config.batch_size,))
         x = torch.stack([torch.from_numpy((data[i:i+self.config.block_size]).astype(np.int64)) for i in ix])
         y = torch.stack([torch.from_numpy((data[i+1:i+1+self.config.block_size]).astype(np.int64)) for i in ix])
         if self.device == 'cuda':
@@ -117,7 +128,7 @@ class Train:
         
         model = Transformer(self.config, self.arch_config)
         model.to(self.device)
-        optimizer = model.configure_optimizers(weight_decay, self.learning_rate, (beta1, beta2), self.device)
+        optimizer = model.configure_optimizers(weight_decay, self.train_config.learning_rate, (beta1, beta2), self.device)
         
         if resume:
             unwanted_prefix = '_orig_mod.'
@@ -151,7 +162,7 @@ class Train:
 
         # 1) linear warmup for warmup_iters steps
         if it < warmup_iters:
-            return self.learning_rate * (it + 1) / (warmup_iters + 1)
+            return self.train_config.learning_rate * (it + 1) / (warmup_iters + 1)
         # 2) if it > lr_decay_iters, return min learning rate
         if it > lr_decay_iters:
             return min_lr
@@ -159,7 +170,7 @@ class Train:
         decay_ratio = (it - warmup_iters) / (lr_decay_iters - warmup_iters)
         assert 0 <= decay_ratio <= 1
         coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio)) # coeff ranges 0..1
-        return min_lr + coeff * (self.learning_rate - min_lr)
+        return min_lr + coeff * (self.train_config.learning_rate - min_lr)
     
     # helps estimate an arbitrarily accurate loss over either split using many batches
     @torch.no_grad()
@@ -167,8 +178,8 @@ class Train:
         out = {}
         model.eval()
         for split in ['train', 'val']:
-            losses = torch.zeros(self.eval_iters)
-            for k in range(self.eval_iters):
+            losses = torch.zeros(self.train_config.eval_iters)
+            for k in range(self.train_config.eval_iters):
                 X, Y = self.get_batch(split)
                 with self.ctx:
                     logits, loss = model(X, Y)
@@ -198,7 +209,7 @@ class Train:
         
         while iter_num < max_iters:
             # determine and set the learning rate for this iteration
-            lr = self.get_lr(iter_num) if decay_lr else self.learning_rate
+            lr = self.get_lr(iter_num) if decay_lr else self.train_config.learning_rate
             for param_group in optimizer.param_groups:
                 param_group['lr'] = lr
 
@@ -274,7 +285,7 @@ class Train:
                 # scale up to undo the division above, approximating the true total loss (exact would have been a sum)
                 lossf = loss.item() * gradient_accumulation_steps
                 if local_iter_num >= 5: # let the training loop settle a bit
-                    mfu = model.estimate_mfu(self.batch_size * gradient_accumulation_steps, delta_time)
+                    mfu = model.estimate_mfu(self.train_config.batch_size * gradient_accumulation_steps, delta_time)
                     running_mfu = mfu if running_mfu == -1.0 else 0.9*running_mfu + 0.1*mfu
                 
                 self.logger.log(category="train_log", key="iter", metrics={
