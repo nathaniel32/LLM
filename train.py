@@ -214,6 +214,7 @@ class Train:
                         'optimizer': optimizer.state_dict(),
                         'model_args': asdict(self.config),
                         'arch_args': asdict(self.arch_config),
+                        'train_args': asdict(self.train_config),
                         'iter_num': iter_num,
                         'best_val_loss': best_val_loss
                     }
