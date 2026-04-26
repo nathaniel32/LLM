@@ -13,7 +13,7 @@ from logger import Logger
 from dataclasses import asdict
 
 class Train:
-    def __init__(self, model_type, attn_type:AttnType, dataset_type, pos_type:PosType):
+    def __init__(self, model_type, attn_type:AttnType, dataset_type, pos_type:PosType, norm_type:NormType):
         seed = 1337
         torch.manual_seed(seed)
         torch.cuda.manual_seed(seed)
@@ -27,8 +27,9 @@ class Train:
 
         self.attn_type:AttnType = attn_type
         self.pos_type:PosType = pos_type
+        self.norm_type:NormType = norm_type
 
-        self.out_dir = os.path.join('out', model_type, attn_type.value, pos_type.value)
+        self.out_dir = os.path.join('out', model_type, attn_type.value, pos_type.value, norm_type.value)
         self.data_dir = os.path.join('datasets', dataset_type)
         
         self.logger = Logger(out_dir=self.out_dir)
@@ -117,12 +118,13 @@ class Train:
             state_dict = checkpoint['model']
             self.attn_type = checkpoint['attn_type']
             self.pos_type = checkpoint['pos_type']
+            self.norm_type = checkpoint['norm_type']
             
-            print({'attn_type': self.attn_type.value, 'pos_type': self.pos_type.value})
+            print({'attn_type': self.attn_type.value, 'pos_type': self.pos_type.value, 'norm_type': self.norm_type.value})
         else:
             print("Initializing a new model from scratch")
         
-        model = Transformer(self.config, self.attn_type, self.pos_type, NormType.RMS)
+        model = Transformer(self.config, self.attn_type, self.pos_type, self.norm_type)
         model.to(self.device)
         optimizer = model.configure_optimizers(weight_decay, self.learning_rate, (beta1, beta2), self.device)
         
@@ -143,6 +145,7 @@ class Train:
         self.logger.set_meta({
             "attn_type": self.attn_type.value,
             "pos_type": self.pos_type.value,
+            "norm_type": self.norm_type.value,
             "param": model.get_num_params(),
             **asdict(self.config)
         })
@@ -221,7 +224,8 @@ class Train:
                         'iter_num': iter_num,
                         'best_val_loss': best_val_loss,
                         'attn_type': self.attn_type,
-                        'pos_type': self.pos_type
+                        'pos_type': self.pos_type,
+                        'norm_type': self.norm_type
                     }
                     save_dir = os.path.join(self.out_dir)
                     print(f"saving checkpoint to {save_dir}")
@@ -304,5 +308,5 @@ parser.add_argument("--no-resume", action="store_false", dest="resume", default=
 args = parser.parse_args()
 print(vars(args))
 
-train = Train(model_type=args.model_type, attn_type=AttnType(args.attn_type), dataset_type=args.dataset_type, pos_type=PosType(args.pos_type))
+train = Train(model_type=args.model_type, attn_type=AttnType(args.attn_type), dataset_type=args.dataset_type, pos_type=PosType(args.pos_type), norm_type=NormType.RMS)
 train.train(resume=args.resume)
