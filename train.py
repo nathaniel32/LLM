@@ -15,7 +15,7 @@ from dataclasses import dataclass, asdict
 @dataclass
 class TrainConfig:
     batch_size: int = 2
-    max_iters: int = 50_000
+    max_iters: int = 600000
     gradient_accumulation_steps: int = 5
     eval_interval: int = 500
     eval_iters: int = 200
@@ -24,7 +24,7 @@ class TrainConfig:
     dtype: str = 'float16'
     grad_clip: float = 1.0
     warmup_iters: int = 2000
-    lr_decay_iters: int = 50_000
+    lr_decay_iters: int = 600000
     weight_decay: float = 1e-1
 
 class Train:
@@ -105,7 +105,6 @@ class Train:
         return x, y
     
     def get_model(self, resume=False):
-        weight_decay = 1e-1
         beta1 = 0.9
         beta2 = 0.95
 
@@ -128,7 +127,7 @@ class Train:
         
         model = Transformer(self.config, self.arch_config)
         model.to(self.device)
-        optimizer = model.configure_optimizers(weight_decay, self.train_config.learning_rate, (beta1, beta2), self.device)
+        optimizer = model.configure_optimizers(self.train_config.weight_decay, self.train_config.learning_rate, (beta1, beta2), self.device)
         
         if resume:
             unwanted_prefix = '_orig_mod.'
@@ -156,18 +155,16 @@ class Train:
         
     # learning rate decay scheduler (cosine with warmup)
     def get_lr(self, it):
-        warmup_iters = 2000
-        lr_decay_iters = 600000 # should be ~= max_iters per Chinchilla
         min_lr = 6e-5 # minimum learning rate, should be ~= learning_rate/10 per Chinchilla
 
         # 1) linear warmup for warmup_iters steps
-        if it < warmup_iters:
-            return self.train_config.learning_rate * (it + 1) / (warmup_iters + 1)
+        if it < self.train_config.warmup_iters:
+            return self.train_config.learning_rate * (it + 1) / (self.train_config.warmup_iters + 1)
         # 2) if it > lr_decay_iters, return min learning rate
-        if it > lr_decay_iters:
+        if it > self.train_config.lr_decay_iters:
             return min_lr
         # 3) in between, use cosine decay down to min learning rate
-        decay_ratio = (it - warmup_iters) / (lr_decay_iters - warmup_iters)
+        decay_ratio = (it - self.train_config.warmup_iters) / (self.train_config.lr_decay_iters - self.train_config.warmup_iters)
         assert 0 <= decay_ratio <= 1
         coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio)) # coeff ranges 0..1
         return min_lr + coeff * (self.train_config.learning_rate - min_lr)
@@ -194,26 +191,21 @@ class Train:
         X, Y = self.get_batch('train')
         
         decay_lr = True # whether to decay the learning rate
-        gradient_accumulation_steps = 5 * 8
-        scaler = torch.amp.GradScaler(enabled=(self.dtype == 'float16'))
-        grad_clip = 1.0 # clip gradients at this value, or disable if == 0.0
+        scaler = torch.amp.GradScaler(enabled=(self.train_config.dtype == 'float16'))
         
         log_interval = 1
-        eval_interval = 500
-        max_iters = 600000 # total number of training iterations
-        patience = 20
 
         patience_counter = 0
         local_iter_num = 0
         running_mfu = -1.0
         
-        while iter_num < max_iters:
+        while iter_num < self.train_config.max_iters:
             # determine and set the learning rate for this iteration
             lr = self.get_lr(iter_num) if decay_lr else self.train_config.learning_rate
             for param_group in optimizer.param_groups:
                 param_group['lr'] = lr
 
-            if iter_num % eval_interval == 0:
+            if iter_num % self.train_config.eval_interval == 0:
                 losses = self.estimate_loss(model)
                 
                 if losses['val'] < best_val_loss:
@@ -245,29 +237,29 @@ class Train:
                     "lr": lr
                 })
 
-                if patience_counter >= patience:
+                if patience_counter >= self.train_config.patience:
                     print(f"Early stopping triggered at iter {iter_num} after {patience_counter} evaluations without improvement.")
                     break
                 else:
-                    print(f"Patience: {patience_counter}/{patience}")
+                    print(f"Patience: {patience_counter}/{self.train_config.patience}")
 
             previous_time = time.time()
 
             # forward backward update, with optional gradient accumulation to simulate larger batch size
             # and using the GradScaler if data type is float16
-            for micro_step in range(gradient_accumulation_steps):
+            for micro_step in range(self.train_config.gradient_accumulation_steps):
                 with self.ctx:
                     logits, loss = model(X, Y)
-                    loss = loss / gradient_accumulation_steps # scale the loss to account for gradient accumulation
+                    loss = loss / self.train_config.gradient_accumulation_steps # scale the loss to account for gradient accumulation
                 # immediately async prefetch next batch while model is doing the forward pass on the GPU
                 X, Y = self.get_batch('train')
                 # backward pass, with gradient scaling if training in fp16
                 scaler.scale(loss).backward()
 
             # clip the gradient
-            if grad_clip != 0.0:
+            if self.train_config.grad_clip != 0.0:
                 scaler.unscale_(optimizer)
-                torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
+                torch.nn.utils.clip_grad_norm_(model.parameters(), self.train_config.grad_clip)
 
             # step the optimizer and scaler if training in fp16
             scaler.step(optimizer)
@@ -283,9 +275,9 @@ class Train:
             if iter_num % log_interval == 0:
                 # get loss as float. note: this is a CPU-GPU sync point
                 # scale up to undo the division above, approximating the true total loss (exact would have been a sum)
-                lossf = loss.item() * gradient_accumulation_steps
+                lossf = loss.item() * self.train_config.gradient_accumulation_steps
                 if local_iter_num >= 5: # let the training loop settle a bit
-                    mfu = model.estimate_mfu(self.train_config.batch_size * gradient_accumulation_steps, delta_time)
+                    mfu = model.estimate_mfu(self.train_config.batch_size * self.train_config.gradient_accumulation_steps, delta_time)
                     running_mfu = mfu if running_mfu == -1.0 else 0.9*running_mfu + 0.1*mfu
                 
                 self.logger.log(category="train_log", key="iter", metrics={
