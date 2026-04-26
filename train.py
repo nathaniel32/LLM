@@ -105,16 +105,7 @@ class Train:
             print(f"Resuming training from {self.out_dir}")
             
             checkpoint = torch.load(ckpt_path, map_location=self.device)
-            checkpoint_model_args = checkpoint['model_args']
-            self.config = ModelConfig(
-                block_size=checkpoint_model_args["block_size"],
-                vocab_size=checkpoint_model_args["vocab_size"],
-                n_layer=checkpoint_model_args["n_layer"],
-                n_head=checkpoint_model_args["n_head"],
-                n_embd=checkpoint_model_args["n_embd"],
-                dropout=checkpoint_model_args["dropout"],
-                bias=checkpoint_model_args["bias"],
-                gqa_kv_head=checkpoint_model_args["gqa_kv_head"])
+            self.config = ModelConfig(**checkpoint['model_args'])
             state_dict = checkpoint['model']
             self.attn_type = checkpoint['attn_type']
             self.pos_type = checkpoint['pos_type']
