@@ -148,6 +148,7 @@ class Train:
         self.logger.set_meta({
             "param": model.get_num_params(),
             **self.arch_config.to_dict(),
+            **asdict(self.train_config),
             **asdict(self.config)
         })
 
