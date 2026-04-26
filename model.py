@@ -419,7 +419,7 @@ class Block(nn.Module):
             elif arch_config.attn_type == AttnType.MQA:
                 n_kv_head = 1
             
-            self.attn = CausalSelfAttention(config, is_rope, n_kv_head=n_kv_head)
+            self.attn = CausalSelfAttention(config, arch_config, n_kv_head=n_kv_head)
 
         self.mlp = MLP(config)
 
