@@ -39,9 +39,9 @@ class Train:
         self.headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         }
-        self.prepare_dataset(data_url=env.dataset_configs[dataset_type])
+        self.prepare_dataset(dataset_meta=env.dataset_configs[dataset_type])
 
-    def prepare_dataset(self, data_url):
+    def prepare_dataset(self, dataset_meta):
         if os.path.exists(os.path.join(self.data_dir, 'train.bin')):
             print("Datasets found!")
             return
@@ -50,7 +50,7 @@ class Train:
         input_file_path = os.path.join(self.data_dir, 'input.txt')
         if not os.path.exists(input_file_path):
             with open(input_file_path, 'w', encoding='utf-8') as f:
-                f.write(requests.get(data_url, headers=self.headers).text)
+                f.write(requests.get(dataset_meta['url'], headers=self.headers).text)
 
         with open(input_file_path, 'r', encoding='utf-8') as f:
             data = f.read()

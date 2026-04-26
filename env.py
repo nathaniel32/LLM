@@ -22,8 +22,24 @@ model_configs = {
 }
 
 dataset_configs = {
-    'shakespeare': 'https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt',
-    'simple_text': 'https://raw.githubusercontent.com/uwgraphics/VEP2_TCP_SimpleText/refs/heads/main/N3/N37535.txt',
-    'wiki_indo': 'https://id.wikipedia.org/w/index.php?title=Indonesia&action=raw',
-    'wiki_indo_json': 'https://id.wikipedia.org/w/api.php?action=query&format=json&prop=extracts&titles=Indonesia&explaintext=1'
+    'openwebtext': {
+        'url': None,
+        'path': None
+    },
+    'shakespeare': {
+        'url': 'https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt',
+        'path': None
+    },
+    'simple_text': {
+        'url': 'https://raw.githubusercontent.com/uwgraphics/VEP2_TCP_SimpleText/refs/heads/main/N3/N37535.txt',
+        'path': None
+    },
+    'wiki_indo': {
+        'url': 'https://id.wikipedia.org/w/index.php?title=Indonesia&action=raw',
+        'path': None
+    },
+    'wiki_indo_json': {
+        'url': 'https://id.wikipedia.org/w/api.php?action=query&format=json&prop=extracts&titles=Indonesia&explaintext=1',
+        'path': None
+    }
 }

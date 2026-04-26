@@ -16,7 +16,7 @@ def prepare_data(root_dir="datasets", max_samples=10000, datasets="openwebtext",
     val_ids = []
 
     val_step = int(1 / val_ratio) if val_ratio > 0 else 0
-    print(val_step)
+    print({"val_step": val_step})
 
     for i, example in enumerate(tqdm(dataset, desc="Processing")):
         if i >= max_samples:
@@ -40,4 +40,4 @@ def prepare_data(root_dir="datasets", max_samples=10000, datasets="openwebtext",
     print(f"Val tokens: {len(val_arr):,}")
 
 if __name__ == "__main__":
-    prepare_data(max_samples=100, val_ratio=0.05)
+    prepare_data(max_samples=1000, val_ratio=0.05)
