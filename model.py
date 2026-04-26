@@ -394,6 +394,7 @@ class Block(nn.Module):
             self.ln_1 = RMSNorm(config.n_embd)
             self.ln_2 = RMSNorm(config.n_embd)
         elif norm_type == NormType.LAYER:
+            print("Using LayerNorm!")
             self.ln_1 = LayerNorm(config.n_embd, bias=config.bias)
             self.ln_2 = LayerNorm(config.n_embd, bias=config.bias)
         
