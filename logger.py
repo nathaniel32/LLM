@@ -22,6 +22,8 @@ class Logger:
         self.data[category] = sorted(self.data[category], key=lambda x: x.get(key, float('inf')))
 
     def log(self, category: str, metrics: dict, key: str = None):
+        print(category, metrics)
+        
         metrics_copy = metrics.copy()
 
         if category not in self.data:
