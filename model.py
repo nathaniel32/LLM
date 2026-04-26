@@ -289,14 +289,18 @@ class MultiHeadLatentAttention(BaseSelfAttention):
         # q: (B, n_head, T, qk_head_dim)
         
         q_nope, q_pe = torch.split(q, [self.qk_nope_head_dim, self.qk_rope_head_dim], dim=-1)
-        q_pe = self.apply_rope(q_pe, pos)
-        # q_pe: (B, n_head, T, rope_dim)
+        if self.is_rope:
+            q_pe = self.apply_rope(q_pe, pos)
+            # q_pe: (B, n_head, T, rope_dim)
 
         # KV: down -> split rope vs lora
         c_kv = self.kv_down(x)  # (B, T, kv_lora_dim + rope_dim)
         kv_latent, k_pe = torch.split(c_kv, [self.kv_lora_dim, self.qk_rope_head_dim], dim=-1)
         # k_pe: (B, T, rope_dim) -> (B, 1, T, rope_dim) -> apply rope -> (B, 1, T, rope_dim)
-        k_pe = self.apply_rope(k_pe.unsqueeze(1), pos)
+        if self.is_rope:
+            k_pe = self.apply_rope(k_pe.unsqueeze(1), pos)
+        else:
+            k_pe = k_pe.unsqueeze(1)
         
         if not self.efficient:
             # expand ke semua head: (B, n_head, T, rope_dim)
