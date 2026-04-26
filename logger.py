@@ -13,6 +13,8 @@ class Logger:
         self._save()
 
     def log(self, category: str, metrics: dict):
+        print(category, metrics)
+
         metrics_copy = metrics.copy()
 
         if category not in self.data:

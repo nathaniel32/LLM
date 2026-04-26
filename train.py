@@ -204,13 +204,13 @@ class Train:
 
             if iter_num % eval_interval == 0:
                 losses = self.estimate_loss(model)
-                self.logger({
+                self.logger.log("val_log", {
                     "iter": iter_num,
-                    "train/loss": losses['train'],
-                    "val/loss": losses['val'],
-                    'best/val/loss': best_val_loss,
+                    "train_loss": float(losses['train']),
+                    "val_loss": float(losses['val']),
+                    'best_val_loss': float(best_val_loss) if best_val_loss != float('inf') else None,
                     "lr": lr,
-                    "mfu": running_mfu*100, # convert to percentage
+                    "mfu_percent": running_mfu*100
                 })
                 if losses['val'] < best_val_loss:
                     best_val_loss = losses['val']
@@ -273,7 +273,13 @@ class Train:
                 if local_iter_num >= 5: # let the training loop settle a bit
                     mfu = model.estimate_mfu(self.batch_size * gradient_accumulation_steps, dt)
                     running_mfu = mfu if running_mfu == -1.0 else 0.9*running_mfu + 0.1*mfu
-                print(f"iter {iter_num}: loss {lossf:.4f}, time {dt*1000:.2f}ms, mfu {running_mfu*100:.2f}%")
+                
+                self.logger.log("train_log", {
+                    "iter": iter_num,
+                    "train_loss": float(lossf),
+                    "time_ms": dt*1000,
+                    "mfu_percent": running_mfu*100
+                })
 
             iter_num += 1
             local_iter_num += 1
