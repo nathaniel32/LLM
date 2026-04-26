@@ -212,14 +212,7 @@ class Train:
 
             if iter_num % eval_interval == 0:
                 losses = self.estimate_loss(model)
-                self.logger.log(category="val_log", key=iter_num, metrics={
-                    "iter": iter_num,
-                    "train_loss": float(losses['train']),
-                    "val_loss": float(losses['val']),
-                    'best_val_loss': float(best_val_loss) if best_val_loss != float('inf') else None,
-                    "lr": lr,
-                    "mfu_percent": running_mfu*100
-                })
+                
                 if losses['val'] < best_val_loss:
                     best_val_loss = losses['val']
                     patience_counter = 0
@@ -240,6 +233,16 @@ class Train:
                     print("Checkpoint saved successfully.")
                 else:
                     patience_counter += 1
+
+                self.logger.log(category="val_log", key=iter_num, metrics={
+                    "iter": iter_num,
+                    "patience": patience_counter,
+                    "train_loss": float(losses['train']),
+                    "val_loss": float(losses['val']),
+                    'best_val_loss': float(best_val_loss) if best_val_loss != float('inf') else None,
+                    "lr": lr,
+                    "mfu_percent": running_mfu*100
+                })
 
                 if patience_counter >= patience:
                     print(f"Early stopping triggered at iter {iter_num} after {patience_counter} evaluations without improvement.")

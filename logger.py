@@ -41,7 +41,7 @@ class Logger:
         
     def _save(self):
         with open(self.log_path, 'w', encoding='utf-8') as f:
-            json.dump(self.data, f, indent=1)
+            json.dump(self.data, f, indent=2)
 
     def delete(self, key: str):
         if key in self.data:
