@@ -217,7 +217,7 @@ class CausalSelfAttention(BaseSelfAttention):
         self.kv_repeat = config.n_head // n_kv_head # 3
         self.kv_dim = n_kv_head * self.head_dim
 
-        self.c_attn = nn.Linear(config.n_embd, config.n_embd + 2 * self.kv_dim, bias=config.bias)
+        self.c_attn = nn.Linear(config.n_embd, config.n_embd + 2 * self.kv_dim, bias=False if is_rope else config.bias)
 
         # output projection
         self.c_proj = nn.Linear(config.n_embd, config.n_embd, bias=config.bias) # torch.Size([768]) -> torch.Size([768])
@@ -273,18 +273,18 @@ class MultiHeadLatentAttention(BaseSelfAttention):
 
         # Query compression
         if self.q_lora_dim == 0:
-            self.wq = nn.Linear(config.n_embd, self.n_head * self.qk_head_dim)
+            self.wq = nn.Linear(config.n_embd, self.n_head * self.qk_head_dim, bias=False)
         else:
-            self.q_down = nn.Linear(config.n_embd, self.q_lora_dim, bias=config.bias)
+            self.q_down = nn.Linear(config.n_embd, self.q_lora_dim, bias=False)
             self.q_norm = RMSNorm(self.q_lora_dim)
-            self.q_up = nn.Linear(self.q_lora_dim, self.n_head * self.qk_head_dim, bias=config.bias)
+            self.q_up = nn.Linear(self.q_lora_dim, self.n_head * self.qk_head_dim, bias=False)
 
         # KV compression
-        self.kv_down = nn.Linear(config.n_embd, self.kv_lora_dim + self.qk_rope_head_dim, bias=config.bias)
+        self.kv_down = nn.Linear(config.n_embd, self.kv_lora_dim + self.qk_rope_head_dim, bias=False)
         self.kv_norm = RMSNorm(self.kv_lora_dim)
-        self.kv_up = nn.Linear(self.kv_lora_dim, self.n_head * (self.qk_nope_head_dim+self.v_head_dim), bias=config.bias)
+        self.kv_up = nn.Linear(self.kv_lora_dim, self.n_head * (self.qk_nope_head_dim+self.v_head_dim), bias=False)
 
-        self.c_proj = nn.Linear(self.n_head * self.v_head_dim, config.n_embd, bias=config.bias)
+        self.c_proj = nn.Linear(self.n_head * self.v_head_dim, config.n_embd, bias=False)
 
     def forward(self, x: torch.Tensor, use_cache: bool = False):
         B, T, C = x.size()
