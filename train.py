@@ -34,7 +34,7 @@ class Train:
         
         self.batch_size = 1
         self.learning_rate = 6e-4
-        self.eval_iters = 500
+        self.eval_iters = 200
         
         self.headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
@@ -188,7 +188,7 @@ class Train:
         grad_clip = 1.0 # clip gradients at this value, or disable if == 0.0
         
         log_interval = 1
-        eval_interval = 10
+        eval_interval = 500
         max_iters = 600000 # total number of training iterations
         patience = 20
 
