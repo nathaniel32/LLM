@@ -288,7 +288,7 @@ class Train:
                     "iter": iter_num,
                     "train_loss": float(lossf),
                     "time_ms": delta_time*1000,
-                    "mfu_percent": running_mfu*100
+                    "mfu_percent": running_mfu * 100 if running_mfu >= 0 else None
                 })
 
             iter_num += 1
