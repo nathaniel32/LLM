@@ -205,10 +205,10 @@ class CausalSelfAttention(BaseSelfAttention):
         self.kv_repeat = config.n_head // n_kv_head # 3
         self.kv_dim = n_kv_head * self.head_dim
 
-        self.c_attn = nn.Linear(config.n_embd, config.n_embd + 2 * self.kv_dim, bias=False if is_rope else config.bias)
+        self.c_attn = nn.Linear(config.n_embd, config.n_embd + 2 * self.kv_dim, bias=config.bias)
 
         # output projection
-        self.c_proj = nn.Linear(config.n_embd, config.n_embd, bias=False if is_rope else config.bias) # torch.Size([768]) -> torch.Size([768])
+        self.c_proj = nn.Linear(config.n_embd, config.n_embd, bias=config.bias) # torch.Size([768]) -> torch.Size([768])
         
     def forward(self, x:torch.Tensor, use_cache: bool = False):
         B, T, C = x.size() # torch.Size([1, 7, 768])
@@ -261,18 +261,18 @@ class MultiHeadLatentAttention(BaseSelfAttention):
 
         # Query compression
         if self.q_lora_dim == 0:
-            self.wq = nn.Linear(config.n_embd, self.n_head * self.qk_head_dim, bias=False)
+            self.wq = nn.Linear(config.n_embd, self.n_head * self.qk_head_dim, bias=config.bias)
         else:
-            self.q_down = nn.Linear(config.n_embd, self.q_lora_dim, bias=False)
+            self.q_down = nn.Linear(config.n_embd, self.q_lora_dim, bias=config.bias)
             self.q_norm = RMSNorm(self.q_lora_dim)
-            self.q_up = nn.Linear(self.q_lora_dim, self.n_head * self.qk_head_dim, bias=False)
+            self.q_up = nn.Linear(self.q_lora_dim, self.n_head * self.qk_head_dim, bias=config.bias)
 
         # KV compression
-        self.kv_down = nn.Linear(config.n_embd, self.kv_lora_dim + self.qk_rope_head_dim, bias=False)
+        self.kv_down = nn.Linear(config.n_embd, self.kv_lora_dim + self.qk_rope_head_dim, bias=config.bias)
         self.kv_norm = RMSNorm(self.kv_lora_dim)
-        self.kv_up = nn.Linear(self.kv_lora_dim, self.n_head * (self.qk_nope_head_dim+self.v_head_dim), bias=False)
+        self.kv_up = nn.Linear(self.kv_lora_dim, self.n_head * (self.qk_nope_head_dim+self.v_head_dim), bias=config.bias)
 
-        self.c_proj = nn.Linear(self.n_head * self.v_head_dim, config.n_embd, bias=False)
+        self.c_proj = nn.Linear(self.n_head * self.v_head_dim, config.n_embd, bias=config.bias)
 
     def forward(self, x: torch.Tensor, use_cache: bool = False):
         B, T, C = x.size()
@@ -388,11 +388,15 @@ class Block(nn.Module):
 
     def __init__(self, config:ModelConfig, attn_type:AttnType, is_rope):
         super().__init__()
-        self.ln_1 = LayerNorm(config.n_embd, bias=config.bias)
         
         if attn_type == AttnType.MLA:
+            self.ln_1 = RMSNorm(config.n_embd)
             self.attn = MultiHeadLatentAttention(config, is_rope)
+            self.ln_2 = RMSNorm(config.n_embd)
+            self.mlp = MLP(config)
         else:
+            self.ln_1 = LayerNorm(config.n_embd, bias=config.bias)
+
             if attn_type == AttnType.MHA:
                 n_kv_head = config.n_head
             elif attn_type == AttnType.GQA:
@@ -402,8 +406,8 @@ class Block(nn.Module):
             
             self.attn = CausalSelfAttention(config, is_rope, n_kv_head=n_kv_head)
         
-        self.ln_2 = LayerNorm(config.n_embd, bias=config.bias)
-        self.mlp = MLP(config)
+            self.ln_2 = LayerNorm(config.n_embd, bias=config.bias)
+            self.mlp = MLP(config)
 
     def forward(self, x:torch.Tensor, use_cache: bool = False) -> torch.Tensor:
         x = x + self.attn(self.ln_1(x), use_cache=use_cache)
@@ -424,7 +428,7 @@ class GPT(nn.Module):
             wpe = nn.Embedding(config.block_size, config.n_embd) if self.is_wpe else None, # Weight Position Embedding -> torch.Size([1024, 768])
             drop = nn.Dropout(config.dropout),
             h = nn.ModuleList([Block(config, attn_type, is_rope=not self.is_wpe) for _ in range(config.n_layer)]),
-            ln_f = LayerNorm(config.n_embd, bias=config.bias),
+            ln_f = RMSNorm(config.n_embd) if attn_type == AttnType.MLA else LayerNorm(config.n_embd, bias=config.bias),
         ))
         self.lm_head = nn.Linear(config.n_embd, config.vocab_size, bias=False) # torch.Size([50257, 768]) | 768 input features & 50257 output features
         self.transformer.wte.weight = self.lm_head.weight # weight tying
