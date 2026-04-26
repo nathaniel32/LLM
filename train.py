@@ -32,7 +32,7 @@ class Train:
         self.logger = Logger(out_dir=arch_config.out_dir)
         self.config = ModelConfig(**env.model_configs[arch_config.model_type])
         
-        self.batch_size = 1
+        self.batch_size = 2
         self.learning_rate = 6e-4
         self.eval_iters = 200
         
