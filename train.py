@@ -134,7 +134,7 @@ class Train:
             **self.arch_config.to_dict()
         })
 
-        print({'best_val_loss': best_val_loss})
+        print({'iter_num':iter_num, 'best_val_loss':best_val_loss})
 
         return model, optimizer, iter_num, best_val_loss
         
