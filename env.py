@@ -10,6 +10,10 @@ class PosType(Enum):
     WPE = "wpe"
     ROPE = "rope"
 
+class NormType(Enum):
+    RMS = "rms"
+    LAYER = "layer"
+
 model_configs = {
     'small': dict(block_size=1024, vocab_size=50257, n_layer=12, n_head=12, n_embd=768,  dropout=0.0, bias=False, gqa_kv_head=4),
     'medium': dict(block_size=1024, vocab_size=50257, n_layer=24, n_head=16, n_embd=1024, dropout=0.0, bias=False, gqa_kv_head=4),

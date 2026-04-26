@@ -8,7 +8,7 @@ from model import ModelConfig, Transformer
 import math
 import time
 import env
-from env import AttnType, PosType
+from env import AttnType, PosType, NormType
 from logger import Logger
 from dataclasses import asdict
 
@@ -122,7 +122,7 @@ class Train:
         else:
             print("Initializing a new model from scratch")
         
-        model = Transformer(self.config, self.attn_type, self.pos_type)
+        model = Transformer(self.config, self.attn_type, self.pos_type, NormType.RMS)
         model.to(self.device)
         optimizer = model.configure_optimizers(weight_decay, self.learning_rate, (beta1, beta2), self.device)
         

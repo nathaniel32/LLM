@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 from abc import ABC, abstractmethod
-from env import AttnType ,PosType
+from env import AttnType, PosType, NormType
 
 @dataclass
 class ModelConfig:
@@ -384,14 +384,20 @@ class MLP(nn.Module):
         return x
     
 class Block(nn.Module):
-    "attention + MLP + LayerNorm"
+    "attention + MLP + Norm"
 
-    def __init__(self, config:ModelConfig, attn_type:AttnType, is_rope):
+    def __init__(self, config:ModelConfig, attn_type:AttnType, pos_type:PosType, norm_type:NormType):
         super().__init__()
-        
-        if attn_type == AttnType.MLA:
+        is_rope = True if pos_type == PosType.ROPE else False
+
+        if norm_type == NormType.RMS:
             self.ln_1 = RMSNorm(config.n_embd)
             self.ln_2 = RMSNorm(config.n_embd)
+        elif norm_type == NormType.LAYER:
+            self.ln_1 = LayerNorm(config.n_embd, bias=config.bias)
+            self.ln_2 = LayerNorm(config.n_embd, bias=config.bias)
+        
+        if attn_type == AttnType.MLA:
             self.attn = MultiHeadLatentAttention(config, is_rope)
         else:
             if attn_type == AttnType.MHA:
@@ -401,8 +407,6 @@ class Block(nn.Module):
             elif attn_type == AttnType.MQA:
                 n_kv_head = 1
             
-            self.ln_1 = LayerNorm(config.n_embd, bias=config.bias)
-            self.ln_2 = LayerNorm(config.n_embd, bias=config.bias)
             self.attn = CausalSelfAttention(config, is_rope, n_kv_head=n_kv_head)
 
         self.mlp = MLP(config)
@@ -415,7 +419,7 @@ class Block(nn.Module):
 class Transformer(nn.Module):
     "Embedding → Block → Block → Block → lm_head"
 
-    def __init__(self, config:ModelConfig, attn_type:AttnType, pos_type:PosType):
+    def __init__(self, config:ModelConfig, attn_type:AttnType, pos_type:PosType, norm_type:NormType):
         super().__init__()
         self.config = config
         self.is_wpe = True if pos_type == PosType.WPE else False
@@ -425,8 +429,8 @@ class Transformer(nn.Module):
             wte = nn.Embedding(config.vocab_size, config.n_embd), # Weight Token Embedding -> torch.Size([50257, 768])
             wpe = nn.Embedding(config.block_size, config.n_embd) if self.is_wpe else None, # Weight Position Embedding -> torch.Size([1024, 768])
             drop = nn.Dropout(config.dropout),
-            h = nn.ModuleList([Block(config, attn_type, is_rope=not self.is_wpe) for _ in range(config.n_layer)]),
-            ln_f = RMSNorm(config.n_embd) if attn_type == AttnType.MLA else LayerNorm(config.n_embd, bias=config.bias),
+            h = nn.ModuleList([Block(config, attn_type, pos_type, norm_type) for _ in range(config.n_layer)]),
+            ln_f = RMSNorm(config.n_embd) if norm_type == NormType.RMS else LayerNorm(config.n_embd, bias=config.bias),
         ))
         self.lm_head = nn.Linear(config.n_embd, config.vocab_size, bias=False) # torch.Size([50257, 768]) | 768 input features & 50257 output features
         self.transformer.wte.weight = self.lm_head.weight # weight tying
