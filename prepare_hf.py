@@ -49,12 +49,14 @@ def read_bin_file(file_path, num_tokens=50):
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument("--max_samples", type=int, default=100000)
+    parser.add_argument("--max_samples", type=int, default=1000000)
     parser.add_argument("--val_ratio", type=float, default=0.05)
+    parser.add_argument("--check_data", action="store_true")
     args = parser.parse_args()
 
-    prepare_data(max_samples=args.max_samples, val_ratio=args.val_ratio)
-
-    total_tokens, decoded_text = read_bin_file("datasets/openwebtext/val.bin", 500)
-    print(f"- Total: {total_tokens}")
-    print(f"- Text: \n{decoded_text}")
+    if not args.check_data:
+        prepare_data(max_samples=args.max_samples, val_ratio=args.val_ratio)
+    else:
+        total_tokens, decoded_text = read_bin_file("datasets/openwebtext/val.bin", 500)
+        print(f"- Total: {total_tokens}")
+        print(f"- Text: \n{decoded_text}")

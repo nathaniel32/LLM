@@ -289,7 +289,7 @@ parser.add_argument("--attn_type", type=str, default="mha")
 parser.add_argument("--pos_type", type=str, default="wpe")
 parser.add_argument("--norm_type", type=str, default="rms")
 parser.add_argument("--dataset_type", type=str, default="openwebtext")
-parser.add_argument("--no-resume", action="store_false", dest="resume", default=True)
+parser.add_argument("--no-resume", action="store_false", dest="resume")
 args = parser.parse_args()
 print(vars(args))
 
