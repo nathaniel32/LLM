@@ -74,12 +74,11 @@ class Main:
                 with torch.no_grad():
                     sd[k].copy_(sd_hf[k])
 
-        return model
+        return model, arch_config
     
-    def from_out(self, model_type, attn_type:AttnType, pos_type:PosType, norm_type:NormType):
+    def from_out(self, arch_config:ArchConfig):
         import os
         
-        arch_config = ArchConfig(model_type=model_type, attn_type=attn_type, pos_type=pos_type, norm_type=norm_type)
         ckpt_path = os.path.join(arch_config.out_dir, 'ckpt.pt')
         
         checkpoint = torch.load(ckpt_path, map_location=self.device)
@@ -96,7 +95,7 @@ class Main:
         
         model.load_state_dict(state_dict)
         print({'attn_type':arch_config.attn_type.value, 'pos_type':arch_config.pos_type.value, 'norm_type':arch_config.norm_type.value})
-        return model
+        return model, arch_config
     
     @torch.no_grad()
     def generate(self, idx, model:Transformer, enc:tiktoken.Encoding, max_new_tokens, temperature=1.0, top_k=None, stop_token=False):
@@ -173,8 +172,8 @@ class Main:
 
         print("Warm-up done.\n")
 
-    def run(self, max_new_tokens, model_type, attn_type:AttnType, pos_type:PosType, norm_type:NormType, start, temperature=0.8, top_k=200, pretrained=None):
-        model = self.from_out(model_type, attn_type, pos_type, norm_type) if pretrained is None else self.from_pretrained(pretrained)
+    def run(self, arch_config:ArchConfig, max_new_tokens, start, temperature=0.8, top_k=200, pretrained=None):
+        model, arch_config = self.from_out(arch_config) if pretrained is None else self.from_pretrained(pretrained)
         model.eval()
         model.to(self.device)
 
@@ -191,7 +190,7 @@ class Main:
         text = enc.decode(y[0].tolist())
 
         label = "use_cache=True" if self.use_cache else "use_cache=False"
-        print(f'\n[{label}] - [{attn_type}] - [{model_type}] - [{pos_type}] - [{norm_type}]')
+        print(f'\n[{label}] - [{arch_config.attn_type}] - [{arch_config.model_type}] - [{arch_config.pos_type}] - [{arch_config.norm_type}]')
         print('Total Token:', len(y[0]))
         print('-'*100)
 
@@ -212,15 +211,17 @@ parser.add_argument("--pretrained", type=str)
 args = parser.parse_args()
 print(vars(args))
 
+arch_config = ArchConfig(model_type=args.model_type, attn_type=AttnType(args.attn_type), pos_type=PosType(args.pos_type), norm_type=NormType(args.norm_type))
+
 main = Main(use_cache=args.use_cache)
-text, y = main.run(args.max_new_tokens, args.model_type, AttnType(args.attn_type), PosType(args.pos_type), NormType(args.norm_type), args.start, pretrained=args.pretrained)
+text, y = main.run(arch_config, args.max_new_tokens, args.start, pretrained=args.pretrained)
 
 if args.print_out:
     print(text)
 
 if args.compare:
     main_1 = Main(use_cache=not args.use_cache)
-    text_1, y_1 = main_1.run(args.max_new_tokens, args.model_type, AttnType(args.attn_type), PosType(args.pos_type), NormType(args.norm_type), args.start, pretrained=args.pretrained)
+    text_1, y_1 = main_1.run(arch_config, args.max_new_tokens, args.start, pretrained=args.pretrained)
     
     if torch.equal(y, y_1):
         print("== OK ==")
