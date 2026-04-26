@@ -234,7 +234,7 @@ class Train:
                 else:
                     patience_counter += 1
 
-                self.logger.log(category="val_log", key=iter_num, metrics={
+                self.logger.log(category="val_log", key="iter", metrics={
                     "iter": iter_num,
                     "patience": patience_counter,
                     "train_loss": float(losses['train']),
@@ -285,7 +285,7 @@ class Train:
                     mfu = model.estimate_mfu(self.batch_size * gradient_accumulation_steps, dt)
                     running_mfu = mfu if running_mfu == -1.0 else 0.9*running_mfu + 0.1*mfu
                 
-                self.logger.log(category="train_log", key=iter_num, metrics={
+                self.logger.log(category="train_log", key="iter", metrics={
                     "iter": iter_num,
                     "train_loss": float(lossf),
                     "time_ms": dt*1000,
