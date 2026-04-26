@@ -9,6 +9,7 @@ import math
 import time
 import env
 from env import AttnType, PosType
+from logger import Logger
 
 class Train:
     def __init__(self, model_type, attn_type:AttnType, dataset_type, pos_type:PosType):
@@ -29,6 +30,7 @@ class Train:
         self.out_dir = os.path.join('out', model_type, attn_type.value, pos_type.value)
         self.data_dir = os.path.join('datasets', dataset_type)
         
+        self.logger = Logger(out_dir=self.out_dir)
         self.config = ModelConfig(**env.model_configs[model_type])
         
         self.batch_size = 1
@@ -202,7 +204,7 @@ class Train:
 
             if iter_num % eval_interval == 0:
                 losses = self.estimate_loss(model)
-                print({
+                self.logger({
                     "iter": iter_num,
                     "train/loss": losses['train'],
                     "val/loss": losses['val'],
