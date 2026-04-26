@@ -391,12 +391,9 @@ class Block(nn.Module):
         
         if attn_type == AttnType.MLA:
             self.ln_1 = RMSNorm(config.n_embd)
-            self.attn = MultiHeadLatentAttention(config, is_rope)
             self.ln_2 = RMSNorm(config.n_embd)
-            self.mlp = MLP(config)
+            self.attn = MultiHeadLatentAttention(config, is_rope)
         else:
-            self.ln_1 = LayerNorm(config.n_embd, bias=config.bias)
-
             if attn_type == AttnType.MHA:
                 n_kv_head = config.n_head
             elif attn_type == AttnType.GQA:
@@ -404,10 +401,11 @@ class Block(nn.Module):
             elif attn_type == AttnType.MQA:
                 n_kv_head = 1
             
-            self.attn = CausalSelfAttention(config, is_rope, n_kv_head=n_kv_head)
-        
+            self.ln_1 = LayerNorm(config.n_embd, bias=config.bias)
             self.ln_2 = LayerNorm(config.n_embd, bias=config.bias)
-            self.mlp = MLP(config)
+            self.attn = CausalSelfAttention(config, is_rope, n_kv_head=n_kv_head)
+
+        self.mlp = MLP(config)
 
     def forward(self, x:torch.Tensor, use_cache: bool = False) -> torch.Tensor:
         x = x + self.attn(self.ln_1(x), use_cache=use_cache)
