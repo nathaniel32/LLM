@@ -188,7 +188,7 @@ class Train:
 
         X, Y = self.get_batch('train')
         
-        t0 = time.time()
+        previous_time = time.time()
         
         decay_lr = True # whether to decay the learning rate
         gradient_accumulation_steps = 5 * 8
@@ -274,9 +274,9 @@ class Train:
             optimizer.zero_grad(set_to_none=True)
 
             # timing and logging
-            t1 = time.time()
-            dt = t1 - t0
-            t0 = t1
+            current_time = time.time()
+            delta_time = current_time - previous_time
+            previous_time = current_time
             if iter_num % log_interval == 0:
                 # get loss as float. note: this is a CPU-GPU sync point
                 # scale up to undo the division above, approximating the true total loss (exact would have been a sum)
@@ -288,7 +288,7 @@ class Train:
                 self.logger.log(category="train_log", key="iter", metrics={
                     "iter": iter_num,
                     "train_loss": float(lossf),
-                    "time_ms": dt*1000,
+                    "time_ms": delta_time*1000,
                     "mfu_percent": running_mfu*100
                 })
 
