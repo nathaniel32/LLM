@@ -1,7 +1,7 @@
 import torch
 from torch.nn import functional as F
 from contextlib import nullcontext
-from model import Transformer, ModelConfig
+from model import Transformer, ModelConfig, ArchConfig
 import tiktoken
 from benchmark import Benchmark
 from env import AttnType, PosType, NormType
@@ -44,7 +44,8 @@ class Main:
         
         # create a from-scratch initialized minGPT model
         config = ModelConfig(**config_args)
-        model = Transformer(config, attn_type=AttnType.MHA, pos_type=PosType.WPE, norm_type=NormType.LAYER)
+        arch_config = ArchConfig(model_type=model_type, attn_type=AttnType.MHA, pos_type=PosType.WPE, norm_type=NormType.LAYER)
+        model = Transformer(config, arch_config)
         sd = model.state_dict()
         sd_keys = sd.keys()
         sd_keys = [k for k in sd_keys if not k.endswith('.attn.bias')] # discard this mask / buffer, not a param
@@ -78,22 +79,23 @@ class Main:
     def from_out(self, model_type, attn_type:AttnType, pos_type:PosType, norm_type:NormType):
         import os
         
-        out_dir = os.path.join("out", model_type, attn_type.value, pos_type.value, norm_type.value)
-        ckpt_path = os.path.join(out_dir, 'ckpt.pt')
+        arch_config = ArchConfig(model_type=model_type, attn_type=attn_type, pos_type=pos_type, norm_type=norm_type)
+        ckpt_path = os.path.join(arch_config.out_dir, 'ckpt.pt')
         
         checkpoint = torch.load(ckpt_path, map_location=self.device)
         gptconf = ModelConfig(**checkpoint['model_args'])
-        attn_type = checkpoint['attn_type']
-        pos_type = checkpoint['pos_type']
-        norm_type = checkpoint['norm_type']
-        model = Transformer(gptconf, attn_type, pos_type, norm_type)
+        arch_config = ArchConfig(**checkpoint['arch_args'])
+        
+        model = Transformer(gptconf, arch_config)
         state_dict = checkpoint['model']
         unwanted_prefix = '_orig_mod.'
+        
         for k,v in list(state_dict.items()):
             if k.startswith(unwanted_prefix):
                 state_dict[k[len(unwanted_prefix):]] = state_dict.pop(k)
+        
         model.load_state_dict(state_dict)
-        print({'attn_type':attn_type.value, 'pos_type':pos_type.value, 'norm_type':norm_type.value})
+        print({'attn_type':arch_config.attn_type.value, 'pos_type':arch_config.pos_type.value, 'norm_type':arch_config.norm_type.value})
         return model
     
     @torch.no_grad()
@@ -189,7 +191,7 @@ class Main:
         text = enc.decode(y[0].tolist())
 
         label = "use_cache=True" if self.use_cache else "use_cache=False"
-        print(f'\n[{label}] - [{attn_type}] - [{model_type}]')
+        print(f'\n[{label}] - [{attn_type}] - [{model_type}] - [{pos_type}] - [{norm_type}]')
         print('Total Token:', len(y[0]))
         print('-'*100)
 
