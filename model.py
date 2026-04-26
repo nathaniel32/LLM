@@ -208,7 +208,7 @@ class CausalSelfAttention(BaseSelfAttention):
         self.c_attn = nn.Linear(config.n_embd, config.n_embd + 2 * self.kv_dim, bias=False if is_rope else config.bias)
 
         # output projection
-        self.c_proj = nn.Linear(config.n_embd, config.n_embd, bias=config.bias) # torch.Size([768]) -> torch.Size([768])
+        self.c_proj = nn.Linear(config.n_embd, config.n_embd, bias=False if is_rope else config.bias) # torch.Size([768]) -> torch.Size([768])
         
     def forward(self, x:torch.Tensor, use_cache: bool = False):
         B, T, C = x.size() # torch.Size([1, 7, 768])
