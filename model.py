@@ -29,7 +29,7 @@ class ArchConfig:
     @property
     def out_dir(self) -> str:
         import os
-        return os.path.join('out', self.model_type, self.attn_type.value, self.pos_type.value, self.norm_type.value)
+        return os.path.join('out', self.model_type, self.norm_type.value, self.pos_type.value, self.attn_type.value)
     
     def to_dict(self):
         d = {k: (v.value if isinstance(v, Enum) else v) for k, v in asdict(self).items()}
