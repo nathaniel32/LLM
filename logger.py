@@ -7,6 +7,12 @@ class Logger:
         self.log_path = os.path.join(out_dir, filename)
         os.makedirs(out_dir, exist_ok=True)
         self.data: dict = {}
+        self._load()
+
+    def _load(self):
+        if os.path.exists(self.log_path):
+            with open(self.log_path, 'r', encoding='utf-8') as f:
+                self.data = json.load(f)
 
     def set_meta(self, meta_dict: dict):            
         self.data.update(meta_dict)
