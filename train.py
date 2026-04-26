@@ -188,8 +188,6 @@ class Train:
 
         X, Y = self.get_batch('train')
         
-        previous_time = time.time()
-        
         decay_lr = True # whether to decay the learning rate
         gradient_accumulation_steps = 5 * 8
         scaler = torch.amp.GradScaler(enabled=(self.dtype == 'float16'))
@@ -240,8 +238,7 @@ class Train:
                     "train_loss": float(losses['train']),
                     "val_loss": float(losses['val']),
                     'best_val_loss': float(best_val_loss) if best_val_loss != float('inf') else None,
-                    "lr": lr,
-                    "mfu_percent": running_mfu*100
+                    "lr": lr
                 })
 
                 if patience_counter >= patience:
@@ -249,6 +246,8 @@ class Train:
                     break
                 else:
                     print(f"Patience: {patience_counter}/{patience}")
+
+            previous_time = time.time()
 
             # forward backward update, with optional gradient accumulation to simulate larger batch size
             # and using the GradScaler if data type is float16
@@ -276,7 +275,6 @@ class Train:
             # timing and logging
             current_time = time.time()
             delta_time = current_time - previous_time
-            previous_time = current_time
             
             if iter_num % log_interval == 0:
                 # get loss as float. note: this is a CPU-GPU sync point
