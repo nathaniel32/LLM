@@ -40,4 +40,10 @@ def prepare_data(root_dir="datasets", max_samples=10000, datasets="openwebtext",
     print(f"Val tokens: {len(val_arr):,}")
 
 if __name__ == "__main__":
-    prepare_data(max_samples=1000, val_ratio=0.05)
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--max_samples", type=int, default=100000)
+    parser.add_argument("--val_ratio", type=float, default=0.05)
+    args = parser.parse_args()
+
+    prepare_data(max_samples=args.max_samples, val_ratio=args.val_ratio)
