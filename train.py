@@ -13,7 +13,7 @@ from logger import Logger
 from dataclasses import asdict
 
 class Train:
-    def __init__(self, model_type, attn_type:AttnType, dataset_type, pos_type:PosType, norm_type:NormType):
+    def __init__(self, arch_config:ArchConfig, dataset_type):
         seed = 1337
         torch.manual_seed(seed)
         torch.cuda.manual_seed(seed)
@@ -25,12 +25,12 @@ class Train:
         ptdtype = {'float32': torch.float32, 'bfloat16': torch.bfloat16, 'float16': torch.float16}[self.dtype]
         self.ctx = nullcontext() if self.device == 'cpu' else torch.amp.autocast(device_type=self.device, dtype=ptdtype)
 
-        self.arch_config = ArchConfig(model_type=model_type, attn_type=attn_type, pos_type=pos_type, norm_type=norm_type)
+        self.arch_config = arch_config
 
         self.data_dir = os.path.join('datasets', dataset_type)
         
-        self.logger = Logger(out_dir=self.arch_config.out_dir)
-        self.config = ModelConfig(**env.model_configs[model_type])
+        self.logger = Logger(out_dir=arch_config.out_dir)
+        self.config = ModelConfig(**env.model_configs[arch_config.model_type])
         
         self.batch_size = 1
         self.learning_rate = 6e-4
@@ -293,5 +293,7 @@ parser.add_argument("--no-resume", action="store_false", dest="resume", default=
 args = parser.parse_args()
 print(vars(args))
 
-train = Train(model_type=args.model_type, attn_type=AttnType(args.attn_type), dataset_type=args.dataset_type, pos_type=PosType(args.pos_type), norm_type=NormType(args.norm_type))
+arch_config = ArchConfig(model_type=args.model_type, attn_type=AttnType(args.attn_type), pos_type=PosType(args.pos_type), norm_type=NormType(args.norm_type))
+
+train = Train(arch_config, dataset_type=args.dataset_type)
 train.train(resume=args.resume)
