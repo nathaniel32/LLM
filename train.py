@@ -212,7 +212,7 @@ class Train:
 
             if iter_num % eval_interval == 0:
                 losses = self.estimate_loss(model)
-                self.logger.log("val_log", {
+                self.logger.log(category="val_log", key=iter_num, metrics={
                     "iter": iter_num,
                     "train_loss": float(losses['train']),
                     "val_loss": float(losses['val']),
@@ -282,7 +282,7 @@ class Train:
                     mfu = model.estimate_mfu(self.batch_size * gradient_accumulation_steps, dt)
                     running_mfu = mfu if running_mfu == -1.0 else 0.9*running_mfu + 0.1*mfu
                 
-                self.logger.log("train_log", {
+                self.logger.log(category="train_log", key=iter_num, metrics={
                     "iter": iter_num,
                     "train_loss": float(lossf),
                     "time_ms": dt*1000,
