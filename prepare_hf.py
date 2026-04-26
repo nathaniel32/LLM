@@ -39,6 +39,13 @@ def prepare_data(root_dir="datasets", max_samples=10000, datasets="openwebtext",
     print(f"Train tokens: {len(train_arr):,}")
     print(f"Val tokens: {len(val_arr):,}")
 
+def read_bin_file(file_path, num_tokens=50):
+    enc = tiktoken.get_encoding("gpt2")
+    tokens_arr = np.fromfile(file_path, dtype=np.uint16)
+    sample_tokens = tokens_arr[:num_tokens]
+    text = enc.decode(sample_tokens)
+    return len(tokens_arr), text
+
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
@@ -47,3 +54,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     prepare_data(max_samples=args.max_samples, val_ratio=args.val_ratio)
+
+    total_tokens, decoded_text = read_bin_file("datasets/openwebtext/val.bin", 500)
+    print(f"- Total: {total_tokens}")
+    print(f"- Text: \n{decoded_text}")
