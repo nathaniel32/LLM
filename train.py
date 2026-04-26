@@ -10,6 +10,7 @@ import time
 import env
 from env import AttnType, PosType
 from logger import Logger
+from dataclasses import asdict
 
 class Train:
     def __init__(self, model_type, attn_type:AttnType, dataset_type, pos_type:PosType):
@@ -139,6 +140,13 @@ class Train:
             iter_num = 0
             best_val_loss = float('inf')
         
+        self.logger.set_meta({
+            "attn_type": self.attn_type.value,
+            "pos_type": self.pos_type.value,
+            "param": model.get_num_params(),
+            **asdict(self.config)
+        })
+
         return model, optimizer, iter_num, best_val_loss
         
     # learning rate decay scheduler (cosine with warmup)
@@ -218,7 +226,7 @@ class Train:
                     checkpoint = {
                         'model': model.state_dict(),
                         'optimizer': optimizer.state_dict(),
-                        'model_args': self.config.to_dict(),
+                        'model_args': asdict(self.config),
                         'iter_num': iter_num,
                         'best_val_loss': best_val_loss,
                         'attn_type': self.attn_type,

@@ -18,18 +18,6 @@ class ModelConfig:
     bias: bool
     gqa_kv_head: Optional[int] = None
 
-    def to_dict(self):
-        return dict(
-            block_size=self.block_size,
-            vocab_size=self.vocab_size,
-            n_layer=self.n_layer,
-            n_head=self.n_head,
-            n_embd=self.n_embd,
-            dropout=self.dropout,
-            bias=self.bias,
-            gqa_kv_head=self.gqa_kv_head
-        )
-
 class BaseKVCache(ABC):
     def __init__(self, block_size):
         self.pos = 0
