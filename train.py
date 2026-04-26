@@ -72,6 +72,8 @@ class Train:
 
             train_ids.tofile(os.path.join(self.data_dir, 'train.bin'))
             val_ids.tofile(os.path.join(self.data_dir, 'val.bin'))
+        else:
+            print("Datasets not found!")
 
     def get_batch(self, split):
         # np.memmap every batch to avoid a memory leak
