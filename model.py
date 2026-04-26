@@ -121,12 +121,12 @@ class RMSNorm(nn.Module):
         return x / rms * self.weight
 
 class BaseSelfAttention(nn.Module):
-    def __init__(self, config:ModelConfig, is_rope):
+    def __init__(self, config:ModelConfig, arch_config:ArchConfig):
         super().__init__()
 
         assert config.n_embd % config.n_head == 0
 
-        self.is_rope = is_rope
+        self.is_rope = True if arch_config.pos_type == PosType.ROPE else False
 
         self.n_head = config.n_head
         self.head_dim = config.n_embd // config.n_head # 64
@@ -206,8 +206,8 @@ class BaseSelfAttention(nn.Module):
 
 class CausalSelfAttention(BaseSelfAttention):
     
-    def __init__(self, config:ModelConfig, is_rope, n_kv_head):
-        super().__init__(config, is_rope)
+    def __init__(self, config:ModelConfig, arch_config:ArchConfig, n_kv_head):
+        super().__init__(config, arch_config)
 
         self.cache = KVCache(config.block_size)
 
@@ -257,8 +257,8 @@ class CausalSelfAttention(BaseSelfAttention):
         return y
 
 class MultiHeadLatentAttention(BaseSelfAttention):
-    def __init__(self, config:ModelConfig, is_rope, efficient=True):
-        super().__init__(config, is_rope)
+    def __init__(self, config:ModelConfig, arch_config:ArchConfig, efficient=True):
+        super().__init__(config, arch_config)
         self.efficient = efficient
         
         self.qk_nope_head_dim = self.head_dim // 4
@@ -398,26 +398,25 @@ class MLP(nn.Module):
 class Block(nn.Module):
     "attention + MLP + Norm"
 
-    def __init__(self, config:ModelConfig, attn_type:AttnType, pos_type:PosType, norm_type:NormType):
+    def __init__(self, config:ModelConfig, arch_config:ArchConfig):
         super().__init__()
-        is_rope = True if pos_type == PosType.ROPE else False
 
-        if norm_type == NormType.RMS:
+        if arch_config.norm_type == NormType.RMS:
             self.ln_1 = RMSNorm(config.n_embd)
             self.ln_2 = RMSNorm(config.n_embd)
-        elif norm_type == NormType.LAYER:
+        elif arch_config.norm_type == NormType.LAYER:
             print("Using LayerNorm!")
             self.ln_1 = LayerNorm(config.n_embd, bias=config.bias)
             self.ln_2 = LayerNorm(config.n_embd, bias=config.bias)
         
-        if attn_type == AttnType.MLA:
-            self.attn = MultiHeadLatentAttention(config, is_rope)
+        if arch_config.attn_type == AttnType.MLA:
+            self.attn = MultiHeadLatentAttention(config, arch_config)
         else:
-            if attn_type == AttnType.MHA:
+            if arch_config.attn_type == AttnType.MHA:
                 n_kv_head = config.n_head
-            elif attn_type == AttnType.GQA:
+            elif arch_config.attn_type == AttnType.GQA:
                 n_kv_head=config.gqa_kv_head
-            elif attn_type == AttnType.MQA:
+            elif arch_config.attn_type == AttnType.MQA:
                 n_kv_head = 1
             
             self.attn = CausalSelfAttention(config, is_rope, n_kv_head=n_kv_head)
@@ -432,18 +431,18 @@ class Block(nn.Module):
 class Transformer(nn.Module):
     "Embedding → Block → Block → Block → lm_head"
 
-    def __init__(self, config:ModelConfig, attn_type:AttnType, pos_type:PosType, norm_type:NormType):
+    def __init__(self, config:ModelConfig, arch_config:ArchConfig):
         super().__init__()
         self.config = config
-        self.is_wpe = True if pos_type == PosType.WPE else False
-        print({'is_wpe': self.is_wpe, 'pos_type': pos_type.value})
+        self.is_wpe = True if arch_config.pos_type == PosType.WPE else False
+        print({'is_wpe': self.is_wpe, 'pos_type': arch_config.pos_type.value})
 
         self.transformer = nn.ModuleDict(dict(
             wte = nn.Embedding(config.vocab_size, config.n_embd), # Weight Token Embedding -> torch.Size([50257, 768])
             wpe = nn.Embedding(config.block_size, config.n_embd) if self.is_wpe else None, # Weight Position Embedding -> torch.Size([1024, 768])
             drop = nn.Dropout(config.dropout),
-            h = nn.ModuleList([Block(config, attn_type, pos_type, norm_type) for _ in range(config.n_layer)]),
-            ln_f = RMSNorm(config.n_embd) if norm_type == NormType.RMS else LayerNorm(config.n_embd, bias=config.bias),
+            h = nn.ModuleList([Block(config, arch_config) for _ in range(config.n_layer)]),
+            ln_f = RMSNorm(config.n_embd) if arch_config.norm_type == NormType.RMS else LayerNorm(config.n_embd, bias=config.bias),
         ))
         self.lm_head = nn.Linear(config.n_embd, config.vocab_size, bias=False) # torch.Size([50257, 768]) | 768 input features & 50257 output features
         self.transformer.wte.weight = self.lm_head.weight # weight tying
