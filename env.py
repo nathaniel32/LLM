@@ -23,18 +23,23 @@ model_configs = {
 
 dataset_configs = {
     'openwebtext': {
-        'url': None
+        'url': None,
+        'dir_path': None
     },
     'shakespeare': {
-        'url': 'https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt'
+        'url': 'https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt',
+        'dir_path': None
     },
     'simple_text': {
-        'url': 'https://raw.githubusercontent.com/uwgraphics/VEP2_TCP_SimpleText/refs/heads/main/N3/N37535.txt'
+        'url': 'https://raw.githubusercontent.com/uwgraphics/VEP2_TCP_SimpleText/refs/heads/main/N3/N37535.txt',
+        'dir_path': None
     },
     'wiki_indo': {
-        'url': 'https://id.wikipedia.org/w/index.php?title=Indonesia&action=raw'
+        'url': 'https://id.wikipedia.org/w/index.php?title=Indonesia&action=raw',
+        'dir_path': None
     },
     'wiki_indo_json': {
-        'url': 'https://id.wikipedia.org/w/api.php?action=query&format=json&prop=extracts&titles=Indonesia&explaintext=1'
+        'url': 'https://id.wikipedia.org/w/api.php?action=query&format=json&prop=extracts&titles=Indonesia&explaintext=1',
+        'dir_path': None
     }
 }

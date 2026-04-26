@@ -46,7 +46,9 @@ class Train:
             print("Datasets found!")
             return
         
-        if dataset_meta['url']:
+        if dataset_meta['dir_path']:
+            self.data_dir = dataset_meta['dir_path']
+        elif dataset_meta['url']:
             os.makedirs(self.data_dir, exist_ok=True)
             input_file_path = os.path.join(self.data_dir, 'input.txt')
             if not os.path.exists(input_file_path):
