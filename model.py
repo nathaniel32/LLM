@@ -20,9 +20,15 @@ class ModelConfig:
 
 @dataclass
 class ArchConfig:
+    model_type: str
     attn_type: AttnType
     pos_type: PosType
     norm_type: NormType
+    
+    @property
+    def out_dir(self) -> str:
+        import os
+        return os.path.join('out', self.model_type, self.attn_type.value, self.pos_type.value, self.norm_type.value)
 
 class BaseKVCache(ABC):
     def __init__(self, block_size):

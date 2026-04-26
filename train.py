@@ -4,7 +4,7 @@ import tiktoken
 import numpy as np
 import torch
 from contextlib import nullcontext
-from model import ModelConfig, Transformer
+from model import ModelConfig, ArchConfig, Transformer
 import math
 import time
 import env
@@ -25,14 +25,11 @@ class Train:
         ptdtype = {'float32': torch.float32, 'bfloat16': torch.bfloat16, 'float16': torch.float16}[self.dtype]
         self.ctx = nullcontext() if self.device == 'cpu' else torch.amp.autocast(device_type=self.device, dtype=ptdtype)
 
-        self.attn_type:AttnType = attn_type
-        self.pos_type:PosType = pos_type
-        self.norm_type:NormType = norm_type
+        self.arch_config = ArchConfig(model_type=model_type, attn_type=attn_type, pos_type=pos_type, norm_type=norm_type)
 
-        self.out_dir = os.path.join('out', model_type, attn_type.value, pos_type.value, norm_type.value)
         self.data_dir = os.path.join('datasets', dataset_type)
         
-        self.logger = Logger(out_dir=self.out_dir)
+        self.logger = Logger(out_dir=self.arch_config.out_dir)
         self.config = ModelConfig(**env.model_configs[model_type])
         
         self.batch_size = 1
@@ -96,26 +93,24 @@ class Train:
         beta1 = 0.9
         beta2 = 0.95
 
-        ckpt_path = os.path.join(self.out_dir, 'ckpt.pt')
+        ckpt_path = os.path.join(self.arch_config.out_dir, 'ckpt.pt')
         if not os.path.exists(ckpt_path):
             print("Checkpoint not found!")
             resume = False
 
         if resume:
-            print(f"Resuming training from {self.out_dir}")
+            print(f"Resuming training from {self.arch_config.out_dir}")
             
             checkpoint = torch.load(ckpt_path, map_location=self.device)
             self.config = ModelConfig(**checkpoint['model_args'])
+            self.arch_config = ArchConfig(**checkpoint['arch_args'])
             state_dict = checkpoint['model']
-            self.attn_type = checkpoint['attn_type']
-            self.pos_type = checkpoint['pos_type']
-            self.norm_type = checkpoint['norm_type']
             
-            print({'attn_type': self.attn_type.value, 'pos_type': self.pos_type.value, 'norm_type': self.norm_type.value})
+            print({'attn_type': self.arch_config.attn_type.value, 'pos_type': self.arch_config.pos_type.value, 'norm_type': self.arch_config.norm_type.value})
         else:
             print("Initializing a new model from scratch")
         
-        model = Transformer(self.config, self.attn_type, self.pos_type, self.norm_type)
+        model = Transformer(self.config, self.arch_config)
         model.to(self.device)
         optimizer = model.configure_optimizers(weight_decay, self.learning_rate, (beta1, beta2), self.device)
         
@@ -134,11 +129,9 @@ class Train:
             best_val_loss = float('inf')
         
         self.logger.set_meta({
-            "attn_type": self.attn_type.value,
-            "pos_type": self.pos_type.value,
-            "norm_type": self.norm_type.value,
             "param": model.get_num_params(),
-            **asdict(self.config)
+            **asdict(self.config),
+            **asdict(self.arch_config)
         })
 
         return model, optimizer, iter_num, best_val_loss
@@ -212,13 +205,11 @@ class Train:
                         'model': model.state_dict(),
                         'optimizer': optimizer.state_dict(),
                         'model_args': asdict(self.config),
+                        'arch_args': asdict(self.arch_config),
                         'iter_num': iter_num,
-                        'best_val_loss': best_val_loss,
-                        'attn_type': self.attn_type,
-                        'pos_type': self.pos_type,
-                        'norm_type': self.norm_type
+                        'best_val_loss': best_val_loss
                     }
-                    save_dir = os.path.join(self.out_dir)
+                    save_dir = os.path.join(self.arch_config.out_dir)
                     print(f"saving checkpoint to {save_dir}")
                     
                     os.makedirs(save_dir, exist_ok=True)
