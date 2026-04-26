@@ -4,7 +4,7 @@ from contextlib import nullcontext
 from model import Transformer, ModelConfig
 import tiktoken
 from benchmark import Benchmark
-from env import AttnType, PosType
+from env import AttnType, PosType, NormType
 
 class Main:
     def __init__(self, use_cache=False, stream=False):
@@ -44,7 +44,7 @@ class Main:
         
         # create a from-scratch initialized minGPT model
         config = ModelConfig(**config_args)
-        model = Transformer(config, attn_type="mha", pos_type="pos_emb")
+        model = Transformer(config, attn_type=AttnType.MHA, pos_type=PosType.WPE, norm_type=NormType.LAYER)
         sd = model.state_dict()
         sd_keys = sd.keys()
         sd_keys = [k for k in sd_keys if not k.endswith('.attn.bias')] # discard this mask / buffer, not a param
@@ -85,7 +85,7 @@ class Main:
         gptconf = ModelConfig(**checkpoint['model_args'])
         attn_type = checkpoint['attn_type']
         pos_type = checkpoint['pos_type']
-        model = Transformer(gptconf, attn_type, pos_type)
+        model = Transformer(gptconf, attn_type, pos_type, NormType.RMS)
         state_dict = checkpoint['model']
         unwanted_prefix = '_orig_mod.'
         for k,v in list(state_dict.items()):
