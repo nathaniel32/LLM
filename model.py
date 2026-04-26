@@ -412,7 +412,7 @@ class Block(nn.Module):
         x = x + self.mlp(self.ln_2(x))
         return x
     
-class GPT(nn.Module):
+class Transformer(nn.Module):
     "Embedding → Block → Block → Block → lm_head"
 
     def __init__(self, config:ModelConfig, attn_type:AttnType, pos_type:PosType):

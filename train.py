@@ -4,7 +4,7 @@ import tiktoken
 import numpy as np
 import torch
 from contextlib import nullcontext
-from model import ModelConfig, GPT
+from model import ModelConfig, Transformer
 import math
 import time
 import env
@@ -122,7 +122,7 @@ class Train:
         else:
             print("Initializing a new model from scratch")
         
-        model = GPT(self.config, self.attn_type, self.pos_type)
+        model = Transformer(self.config, self.attn_type, self.pos_type)
         model.to(self.device)
         optimizer = model.configure_optimizers(weight_decay, self.learning_rate, (beta1, beta2), self.device)
         

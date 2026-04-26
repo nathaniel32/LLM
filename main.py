@@ -1,7 +1,7 @@
 import torch
 from torch.nn import functional as F
 from contextlib import nullcontext
-from model import GPT, ModelConfig
+from model import Transformer, ModelConfig
 import tiktoken
 from benchmark import Benchmark
 from env import AttnType, PosType
@@ -44,7 +44,7 @@ class Main:
         
         # create a from-scratch initialized minGPT model
         config = ModelConfig(**config_args)
-        model = GPT(config, attn_type="mha", pos_type="pos_emb")
+        model = Transformer(config, attn_type="mha", pos_type="pos_emb")
         sd = model.state_dict()
         sd_keys = sd.keys()
         sd_keys = [k for k in sd_keys if not k.endswith('.attn.bias')] # discard this mask / buffer, not a param
@@ -85,7 +85,7 @@ class Main:
         gptconf = ModelConfig(**checkpoint['model_args'])
         attn_type = checkpoint['attn_type']
         pos_type = checkpoint['pos_type']
-        model = GPT(gptconf, attn_type, pos_type)
+        model = Transformer(gptconf, attn_type, pos_type)
         state_dict = checkpoint['model']
         unwanted_prefix = '_orig_mod.'
         for k,v in list(state_dict.items()):
@@ -96,7 +96,7 @@ class Main:
         return model
     
     @torch.no_grad()
-    def generate(self, idx, model:GPT, enc:tiktoken.Encoding, max_new_tokens, temperature=1.0, top_k=None, stop_token=False):
+    def generate(self, idx, model:Transformer, enc:tiktoken.Encoding, max_new_tokens, temperature=1.0, top_k=None, stop_token=False):
         """
         Take a conditioning sequence of indices idx (LongTensor of shape (b,t)) and complete
         the sequence max_new_tokens times, feeding the predictions back into the model each time.
