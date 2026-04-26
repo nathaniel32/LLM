@@ -131,8 +131,10 @@ class Train:
         self.logger.set_meta({
             "param": model.get_num_params(),
             **asdict(self.config),
-            **asdict(self.arch_config)
+            **self.arch_config.to_dict()
         })
+
+        print({'best_val_loss': best_val_loss})
 
         return model, optimizer, iter_num, best_val_loss
         

@@ -1,11 +1,12 @@
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from typing import Optional
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
 from abc import ABC, abstractmethod
 from env import AttnType, PosType, NormType
+from enum import Enum
 
 @dataclass
 class ModelConfig:
@@ -29,6 +30,10 @@ class ArchConfig:
     def out_dir(self) -> str:
         import os
         return os.path.join('out', self.model_type, self.attn_type.value, self.pos_type.value, self.norm_type.value)
+    
+    def to_dict(self):
+        d = {k: (v.value if isinstance(v, Enum) else v) for k, v in asdict(self).items()}
+        return d
 
 class BaseKVCache(ABC):
     def __init__(self, block_size):
