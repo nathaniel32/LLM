@@ -291,7 +291,7 @@ class Train:
 
 import argparse
 parser = argparse.ArgumentParser()
-parser.add_argument("--model_type", type=str, default="small")
+parser.add_argument("--model_type", type=str, default="research")
 parser.add_argument("--attn_type", type=str, default="mha")
 parser.add_argument("--pos_type", type=str, default="wpe")
 parser.add_argument("--norm_type", type=str, default="rms")
@@ -302,5 +302,23 @@ print(vars(args))
 
 arch_config = ArchConfig(model_type=args.model_type, attn_type=AttnType(args.attn_type), pos_type=PosType(args.pos_type), norm_type=NormType(args.norm_type))
 
-train = Train(arch_config, train_config=TrainConfig(), dataset_type=args.dataset_type)
+research_train_config = TrainConfig(
+    batch_size = 4,                         # Increased for better VRAM utilization
+    gradient_accumulation_steps = 8,        # Effective batch size = 32 (4 x 8)
+    max_iters = 20_000,                     # ~655M tokens, sufficient for thesis comparison
+    
+    eval_interval = 1000,                   # Evaluate less frequently to save time
+    eval_iters = 100,                       # Sufficient for a reliable validation loss estimate
+    log_interval = 10,                      # Prevent terminal spam
+    patience = 5,                           # Early stopping if validation loss plateaus
+    
+    learning_rate = 1e-3,                   # More aggressive for shorter training runs
+    min_lr = 1e-4,                          # 10% of max learning rate
+    warmup_iters = 1000,                    # 5% of max_iters
+    lr_decay_iters = 20_000,                # Must match max_iters for full cosine decay
+    
+    dtype = 'float16'                       # Best for Colab T4 (T4 doesn't support bfloat16 well)
+)
+
+train = Train(arch_config, train_config=research_train_config, dataset_type=args.dataset_type)
 train.train(resume=args.resume)
