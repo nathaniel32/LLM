@@ -1,55 +1,62 @@
 import os
-
-os.environ["HF_HOME"]        = "D:/Datasets/LLM/huggingface"
-os.environ["HF_DATASETS_CACHE"] = "D:/Datasets/LLM/huggingface/cache"
-
 from tqdm import tqdm
 import numpy as np
 import tiktoken
 from datasets import load_dataset
 
-OUTPUT_DIR = "D:/Datasets/LLM/openwebtext"
-os.makedirs(OUTPUT_DIR, exist_ok=True)
+def prepare_data(root_dir="datasets", max_samples=10000, datasets="openwebtext", val_ratio=0.01):
+    out_dir = os.path.join(root_dir, datasets)
+    os.makedirs(out_dir, exist_ok=True)
 
-num_proc = 8
-num_proc_load_dataset = num_proc
+    enc = tiktoken.get_encoding("gpt2")
+    dataset = load_dataset(datasets, split="train", streaming=True)
 
-enc = tiktoken.get_encoding("gpt2")
+    val_step = int(1 / val_ratio) if val_ratio > 0 else 0
+    print({"val_step": val_step})
 
-if __name__ == '__main__':
-    dataset = load_dataset("openwebtext", num_proc=num_proc_load_dataset)
+    train_tokens_count = 0
+    val_tokens_count = 0
 
-    split_dataset = dataset["train"].train_test_split(test_size=0.0005, seed=2357, shuffle=True)
-    split_dataset['val'] = split_dataset.pop('test')
+    with open(os.path.join(out_dir, "train.bin"), "wb") as f_train, \
+         open(os.path.join(out_dir, "val.bin"), "wb") as f_val:
 
-    def process(example):
-        ids = enc.encode_ordinary(example['text'])
-        ids.append(enc.eot_token)
-        return {'ids': ids, 'len': len(ids)}
+        for i, example in enumerate(tqdm(dataset, desc="Processing")):
+            if i >= max_samples:
+                break
 
-    tokenized = split_dataset.map(
-        process,
-        remove_columns=['text'],
-        desc="tokenizing the splits",
-        num_proc=num_proc,
-    )
+            ids = enc.encode_ordinary(example["text"])
+            ids.append(enc.eot_token)
 
-    for split, dset in tokenized.items():
-        arr_len = np.sum(dset['len'], dtype=np.uint64)
+            arr = np.array(ids, dtype=np.uint16)
 
-        # ── Simpan ke D:/ langsung ──
-        filename = os.path.join(OUTPUT_DIR, f'{split}.bin')
+            if val_step > 0 and i % val_step == 0:
+                arr.tofile(f_val)
+                val_tokens_count += len(ids)
+            else:
+                arr.tofile(f_train)
+                train_tokens_count += len(ids)
 
-        dtype = np.uint16
-        arr = np.memmap(filename, dtype=dtype, mode='w+', shape=(arr_len,))
-        total_batches = 1024
-        idx = 0
+    print(f"Train tokens: {train_tokens_count:,}")
+    print(f"Val tokens: {val_tokens_count:,}")
 
-        for batch_idx in tqdm(range(total_batches), desc=f'writing {filename}'):
-            batch = dset.shard(num_shards=total_batches, index=batch_idx, contiguous=True).with_format('numpy')
-            arr_batch = np.concatenate(batch['ids'])
-            arr[idx : idx + len(arr_batch)] = arr_batch
-            idx += len(arr_batch)
+def read_bin_file(file_path, num_tokens=50):
+    enc = tiktoken.get_encoding("gpt2")
+    tokens_arr = np.fromfile(file_path, dtype=np.uint16)
+    sample_tokens = tokens_arr[:num_tokens]
+    text = enc.decode(sample_tokens)
+    return len(tokens_arr), text
 
-        arr.flush()
-        print(f"✓ Saved: {filename}")
+if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--max_samples", type=int, default=1000000)
+    parser.add_argument("--val_ratio", type=float, default=0.05)
+    parser.add_argument("--check_data", action="store_true")
+    args = parser.parse_args()
+
+    if not args.check_data:
+        prepare_data(max_samples=args.max_samples, val_ratio=args.val_ratio)
+    else:
+        total_tokens, decoded_text = read_bin_file("datasets/openwebtext/val.bin", 500)
+        print(f"- Total: {total_tokens}")
+        print(f"- Text: \n{decoded_text}")
