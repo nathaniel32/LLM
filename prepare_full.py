@@ -18,7 +18,7 @@ batch_size = 1024
 enc = tiktoken.get_encoding("gpt2")
 
 if __name__ == '__main__':
-    dataset = load_dataset("Skylion007/openwebtext", num_proc=num_proc_load_dataset, trust_remote_code=True)
+    dataset = load_dataset("openwebtext", num_proc=num_proc_load_dataset, trust_remote_code=True)
 
     split_dataset = dataset["train"].train_test_split(test_size=0.0005, seed=2357, shuffle=True)
     split_dataset['val'] = split_dataset.pop('test')
