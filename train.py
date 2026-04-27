@@ -11,6 +11,7 @@ import env
 from env import AttnType, PosType, NormType
 from logger import Logger
 from dataclasses import dataclass, asdict
+from typing import Optional
 
 @dataclass
 class TrainConfig:
@@ -20,9 +21,9 @@ class TrainConfig:
     eval_interval: int = 500
     eval_iters: int = 200
     learning_rate: float = 6e-4
-    patience: int = 20
+    patience: Optional[int] = 20
     dtype: str = 'float16'
-    grad_clip: float = 1.0
+    grad_clip: Optional[float] = 1.0
     warmup_iters: int = 2000
     lr_decay_iters: int = 600000
     weight_decay: float = 1e-1
@@ -236,11 +237,12 @@ class Train:
                     "lr": lr
                 })
 
-                if patience_counter >= self.train_config.patience:
-                    print(f"Early stopping triggered at iter {iter_num} after {patience_counter} evaluations without improvement.")
-                    break
-                else:
-                    print(f"Patience: {patience_counter}/{self.train_config.patience}")
+                if self.train_config.patience is not None:
+                    if patience_counter >= self.train_config.patience:
+                        print(f"Early stopping triggered at iter {iter_num} after {patience_counter} evaluations without improvement.")
+                        break
+                    else:
+                        print(f"Patience: {patience_counter}/{self.train_config.patience}")
 
             previous_time = time.time()
 
@@ -256,7 +258,7 @@ class Train:
                 scaler.scale(loss).backward()
 
             # clip the gradient
-            if self.train_config.grad_clip != 0.0:
+            if self.train_config.grad_clip is not None:
                 scaler.unscale_(optimizer)
                 torch.nn.utils.clip_grad_norm_(model.parameters(), self.train_config.grad_clip)
 
@@ -310,7 +312,7 @@ research_train_config = TrainConfig(
     eval_interval = 1000,                   # Evaluate less frequently to save time
     eval_iters = 100,                       # Sufficient for a reliable validation loss estimate
     log_interval = 10,                      # Prevent terminal spam
-    patience = 5,                           # Early stopping if validation loss plateaus
+    patience = None,                        # Early stopping if validation loss plateaus
     
     learning_rate = 1e-3,                   # More aggressive for shorter training runs
     min_lr = 1e-4,                          # 10% of max learning rate
