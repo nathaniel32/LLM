@@ -11,8 +11,9 @@ from datasets import load_dataset
 OUTPUT_DIR = "D:/Datasets/LLM/openwebtext"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-num_proc = 8
-num_proc_load_dataset = num_proc
+num_proc = 4
+total_batches = 2048
+num_proc_load_dataset = 8
 
 enc = tiktoken.get_encoding("gpt2")
 
@@ -42,7 +43,6 @@ if __name__ == '__main__':
 
         dtype = np.uint16
         arr = np.memmap(filename, dtype=dtype, mode='w+', shape=(arr_len,))
-        total_batches = 1024
         idx = 0
 
         for batch_idx in tqdm(range(total_batches), desc=f'writing {filename}'):
