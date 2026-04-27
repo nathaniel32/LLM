@@ -12,13 +12,13 @@ OUTPUT_DIR = "D:/Datasets/LLM/openwebtext"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 num_proc = 4
-total_batches = 2048
 num_proc_load_dataset = 8
+batch_size = 1024 
 
 enc = tiktoken.get_encoding("gpt2")
 
 if __name__ == '__main__':
-    dataset = load_dataset("openwebtext", num_proc=num_proc_load_dataset)
+    dataset = load_dataset("Skylion007/openwebtext", num_proc=num_proc_load_dataset, trust_remote_code=True)
 
     split_dataset = dataset["train"].train_test_split(test_size=0.0005, seed=2357, shuffle=True)
     split_dataset['val'] = split_dataset.pop('test')
@@ -38,8 +38,6 @@ if __name__ == '__main__':
         batch_size=1000,
         num_proc=num_proc,
         keep_in_memory=False,
-        writer_batch_size=500,
-        load_from_cache_file=True,
         remove_columns=['text'],
         desc="tokenizing the splits"
     )
@@ -53,8 +51,7 @@ if __name__ == '__main__':
         arr = np.memmap(filename, dtype=dtype, mode='w+', shape=(arr_len,))
         idx = 0
 
-        for batch_idx in tqdm(range(total_batches), desc=f'writing {filename}'):
-            batch = dset.shard(num_shards=total_batches, index=batch_idx, contiguous=True).with_format('numpy')
+        for batch in tqdm(dset.iter(batch_size=batch_size), desc=f'writing {filename}'):
             arr_batch = np.concatenate(batch['ids'])
             arr[idx : idx + len(arr_batch)] = arr_batch
             idx += len(arr_batch)
