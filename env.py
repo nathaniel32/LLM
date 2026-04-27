@@ -24,7 +24,7 @@ model_configs = {
 dataset_configs = {
     'openwebtext': {
         'url': None,
-        'dir_path': None
+        'dir_path': "D:/Datasets/LLM/openwebtext"
     },
     'shakespeare': {
         'url': 'https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt',
