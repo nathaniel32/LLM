@@ -4,7 +4,7 @@ import numpy as np
 import tiktoken
 from datasets import load_dataset
 
-def prepare_data(root_dir="datasets", max_samples=10000, datasets="openwebtext", val_ratio=0.01):
+def prepare_data(max_samples, val_ratio, root_dir="datasets", datasets="openwebtext"):
     out_dir = os.path.join(root_dir, datasets)
     os.makedirs(out_dir, exist_ok=True)
 
@@ -50,12 +50,12 @@ if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("--max_samples", type=int, default=1000000)
-    parser.add_argument("--val_ratio", type=float, default=0.05)
+    parser.add_argument("--val_ratio", type=float, default=0.01)
     parser.add_argument("--check_data", action="store_true")
     args = parser.parse_args()
 
     if not args.check_data:
-        prepare_data(max_samples=args.max_samples, val_ratio=args.val_ratio)
+        prepare_data(args.max_samples, args.val_ratio)
     else:
         total_tokens, decoded_text = read_bin_file("datasets/openwebtext/val.bin", 500)
         print(f"- Total: {total_tokens}")
