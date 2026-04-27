@@ -38,7 +38,6 @@ if __name__ == '__main__':
     for split, dset in tokenized.items():
         arr_len = np.sum(dset['len'], dtype=np.uint64)
 
-        # ── Simpan ke D:/ langsung ──
         filename = os.path.join(OUTPUT_DIR, f'{split}.bin')
 
         dtype = np.uint16
@@ -52,4 +51,4 @@ if __name__ == '__main__':
             idx += len(arr_batch)
 
         arr.flush()
-        print(f"✓ Saved: {filename}")
+        print(f"- Saved: {filename}")
