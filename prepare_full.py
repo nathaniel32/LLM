@@ -23,16 +23,25 @@ if __name__ == '__main__':
     split_dataset = dataset["train"].train_test_split(test_size=0.0005, seed=2357, shuffle=True)
     split_dataset['val'] = split_dataset.pop('test')
 
-    def process(example):
-        ids = enc.encode_ordinary(example['text'])
-        ids.append(enc.eot_token)
-        return {'ids': ids, 'len': len(ids)}
+    def process(examples):
+        outputs = {"ids": [], "len": []}
+        for text in examples["text"]:
+            ids = enc.encode_ordinary(text)
+            ids.append(enc.eot_token)
+            outputs["ids"].append(ids)
+            outputs["len"].append(len(ids))
+        return outputs
 
     tokenized = split_dataset.map(
         process,
-        remove_columns=['text'],
-        desc="tokenizing the splits",
+        batched=True,
+        batch_size=1000,
         num_proc=num_proc,
+        keep_in_memory=False,
+        writer_batch_size=500,
+        load_from_cache_file=True,
+        remove_columns=['text'],
+        desc="tokenizing the splits"
     )
 
     for split, dset in tokenized.items():

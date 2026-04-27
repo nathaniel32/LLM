@@ -49,7 +49,7 @@ def read_bin_file(file_path, num_tokens=50):
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument("--max_samples", type=int, default=1000000)
+    parser.add_argument("--max_samples", type=int, default=1000000) #8009762
     parser.add_argument("--val_ratio", type=float, default=0.01)
     parser.add_argument("--check_data", action="store_true")
     args = parser.parse_args()
