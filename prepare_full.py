@@ -11,7 +11,7 @@ from datasets import load_dataset
 OUTPUT_DIR = "D:/Datasets/LLM/openwebtext"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-num_proc = 4
+num_proc = 8
 num_proc_load_dataset = 8
 batch_size = 1024 
 
