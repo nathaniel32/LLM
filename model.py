@@ -272,7 +272,7 @@ class MultiHeadLatentAttention(BaseSelfAttention):
         self.v_head_dim = self.head_dim // 2
 
         self.q_lora_dim = 0
-        self.kv_lora_dim = config.n_embd // 8
+        self.kv_lora_dim = self.head_dim * 2 # config.n_embd // 8
 
         self.cache = KVCache(config.block_size) if not efficient else MLAKVCache(config.block_size, self.kv_lora_dim, self.qk_rope_head_dim)
 
