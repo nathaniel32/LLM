@@ -190,6 +190,7 @@ class TrainType(Enum):
 
 @dataclass
 class Configs:
+    flash: bool
     model_type: ModelType
     attn_type: AttnType
     pos_type: PosType
@@ -200,7 +201,8 @@ class Configs:
     @property
     def out_dir(self) -> str:
         import os
-        return os.path.join('out', self.dataset_type.value.name, self.model_type.value.name, self.norm_type.value.name, self.train_type.value.name, self.pos_type.value.name, self.attn_type.value.name)
+        flash_str = "flash" if self.flash else "no_flash"
+        return os.path.join('out', self.dataset_type.value.name, self.model_type.value.name, self.norm_type.value.name, self.train_type.value.name, self.pos_type.value.name, self.attn_type.value.name, flash_str)
     
     def to_dict(self):
         def _to_dict(obj):
@@ -219,6 +221,7 @@ class Configs:
 import argparse
 parser = argparse.ArgumentParser()
 
+parser.add_argument("--no_flash", action="store_false", dest="flash")
 parser.add_argument("--train_type", type=str, default="RESEARCH")
 parser.add_argument("--dataset_type", type=str, default="OPENWEBTEXT")
 parser.add_argument("--model_type", type=str, default="RESEARCH")
@@ -237,4 +240,4 @@ parser.add_argument("--no_resume", action="store_false", dest="resume")
 
 args = parser.parse_args()
 
-args_configs = Configs(train_type=TrainType[args.train_type.upper()], dataset_type=DatasetType[args.dataset_type.upper()], model_type=ModelType[args.model_type.upper()], attn_type=AttnType[args.attn_type.upper()], pos_type=PosType[args.pos_type.upper()], norm_type=NormType[args.norm_type.upper()])
+args_configs = Configs(flash=args.flash, train_type=TrainType[args.train_type.upper()], dataset_type=DatasetType[args.dataset_type.upper()], model_type=ModelType[args.model_type.upper()], attn_type=AttnType[args.attn_type.upper()], pos_type=PosType[args.pos_type.upper()], norm_type=NormType[args.norm_type.upper()])

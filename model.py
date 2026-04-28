@@ -98,6 +98,7 @@ class RMSNorm(nn.Module):
 class BaseSelfAttention(nn.Module):
     def __init__(self, configs:Configs):
         super().__init__()
+        self.configs = configs
         self.model_config = configs.model_type.value
 
         assert self.model_config.n_embd % self.model_config.n_head == 0
@@ -111,15 +112,14 @@ class BaseSelfAttention(nn.Module):
         self.attn_dropout = nn.Dropout(self.model_config.dropout)
         self.resid_dropout = nn.Dropout(self.model_config.dropout)
         
-        self.flash = hasattr(torch.nn.functional, 'scaled_dot_product_attention')
-        if not self.flash:
+        if not configs.flash:
             print("WARNING: using slow attention")
             # causal mask to ensure that attention is only applied to the left in the input sequence
             self.register_buffer("bias", torch.tril(torch.ones(self.model_config.block_size, self.model_config.block_size)).view(1, 1, self.model_config.block_size, self.model_config.block_size))
             #self.bias = torch.tril(torch.ones(config.block_size, config.block_size)).view(1, 1, config.block_size, config.block_size).to('cuda') # torch.Size([1, 1, 1024, 1024])
 
     def _causal_attention(self, q, k, v, T, head_dim):
-        if self.flash:
+        if self.configs.flash:
             is_causal = T > 1
             y = torch.nn.functional.scaled_dot_product_attention(q, k, v, attn_mask=None, dropout_p=self.model_config.dropout if self.training else 0, is_causal=is_causal)
         else:
