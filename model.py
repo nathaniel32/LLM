@@ -358,9 +358,9 @@ class MLP(nn.Module):
 
     def __init__(self, configs:Configs):
         super().__init__()
-        self.c_fc    = nn.Linear(configs.model_type.value.n_embd, 4 * configs.model_type.value.n_embd, bias=configs.model_type.value.bias)
+        self.c_fc    = nn.Linear(configs.model_type.value.n_embd, configs.attn_type.value.mlp_ratio * configs.model_type.value.n_embd, bias=configs.model_type.value.bias)
         self.gelu    = nn.GELU()
-        self.c_proj  = nn.Linear(4 * configs.model_type.value.n_embd, configs.model_type.value.n_embd, bias=configs.model_type.value.bias)
+        self.c_proj  = nn.Linear(configs.attn_type.value.mlp_ratio * configs.model_type.value.n_embd, configs.model_type.value.n_embd, bias=configs.model_type.value.bias)
         self.dropout = nn.Dropout(configs.model_type.value.dropout)
 
     def forward(self, x:torch.Tensor) -> torch.Tensor:
