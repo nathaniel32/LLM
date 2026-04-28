@@ -27,7 +27,6 @@ class Main:
 
         # create a from-scratch initialized minGPT model
         self.configs = Configs(model_type=self.configs.model_type, attn_type=AttnType.MHA, pos_type=PosType.WPE, norm_type=NormType.LAYER)
-        print(self.configs)
 
         model = Transformer(self.configs)
         sd = model.state_dict()
@@ -77,7 +76,6 @@ class Main:
                 state_dict[k[len(unwanted_prefix):]] = state_dict.pop(k)
         
         model.load_state_dict(state_dict)
-        print(self.configs.to_dict())
         return model
     
     @torch.no_grad()
@@ -159,6 +157,10 @@ class Main:
         model.eval()
         model.to(self.device)
 
+        label = "use_cache=True" if self.use_cache else "use_cache=False"
+        print(f'\n[{label}]')
+        print(self.configs.info())
+
         #self.warmup(model)
 
         enc = tiktoken.get_encoding("gpt2")
@@ -171,14 +173,10 @@ class Main:
                 
         text = enc.decode(y[0].tolist())
 
-        label = "use_cache=True" if self.use_cache else "use_cache=False"
-        print(f'\n[{label}]', self.configs.to_dict())
         print('Total Token:', len(y[0]))
         print('-'*100)
 
         return text, y
-
-print(vars(args))
 
 main = Main(configs=args_configs, use_cache=args.use_cache)
 text, y = main.run(args.max_new_tokens, args.start, pretrained=args.pretrained)

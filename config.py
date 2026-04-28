@@ -217,6 +217,24 @@ class Configs:
             else:
                 return obj
         return _to_dict(self)
+    
+    def info(self):
+        m = self.model_type.value
+        t = self.train_type.value
+        
+        info_str = [
+            f"{'='*50}",
+            f" CONFIGURATION: {self.model_type.name} on {self.dataset_type.name} ",
+            f"{'='*50}",
+            f" Arsitektur  : {self.attn_type.name} | {self.pos_type.name} | {self.norm_type.name}",
+            f" Flash Attn  : {'ACTIVE' if self.flash else 'INACTIVE'}",
+            f" Params      : L={m.n_layer}, H={m.n_head}, E={m.n_embd}, B={m.block_size}",
+            f" Training    : LR={t.learning_rate}, Batch={t.batch_size}, Accum={t.gradient_accumulation_steps}",
+            f" Precision   : {t.dtype}",
+            f" Output Dir  : {self.out_dir}",
+            f"{'='*50}"
+        ]
+        return "\n".join(info_str)
 
 import argparse
 parser = argparse.ArgumentParser()

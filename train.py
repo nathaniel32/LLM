@@ -66,7 +66,7 @@ class Train:
             self.configs = Configs(**checkpoint['args'])
             state_dict = checkpoint['model']
             
-            print(self.configs.to_dict())
+            print(self.configs.info())
         else:
             print("Initializing a new model from scratch")
         
@@ -231,8 +231,6 @@ class Train:
 
             iter_num += 1
             local_iter_num += 1
-
-print(vars(args))
 
 train = Train(configs=args_configs)
 train.train(resume=args.resume)
