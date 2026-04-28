@@ -59,13 +59,21 @@ class Train:
         self.prepare_dataset(dataset_meta=env.dataset_configs[dataset_type])
 
     def prepare_dataset(self, dataset_meta):
+        print(dataset_meta)
+        
         if os.path.exists(os.path.join(self.data_dir, 'train.bin')):
             print("Datasets found!")
             return
         
-        if dataset_meta['dir_path']:
+        if dataset_meta['dir_path'] is not None:
             self.data_dir = dataset_meta['dir_path']
-        elif dataset_meta['url']:
+            if os.path.exists(os.path.join(self.data_dir, 'train.bin')):
+                print("Datasets found in dir_path!:", self.data_dir)
+                return
+        
+        if dataset_meta['url'] is not None:
+            print("Downloading text from the internet:", dataset_meta['url'])
+
             os.makedirs(self.data_dir, exist_ok=True)
             input_file_path = os.path.join(self.data_dir, 'input.txt')
             if not os.path.exists(input_file_path):
