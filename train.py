@@ -35,9 +35,7 @@ class TrainConfig:
 
 class Train:
     def __init__(self, arch_config:ArchConfig, train_config:TrainConfig, dataset_type):
-        seed = 1337
-        torch.manual_seed(seed)
-        torch.cuda.manual_seed(seed)
+        self.set_seed(1337)
         torch.backends.cuda.matmul.allow_tf32 = True # allow tf32 on matmul
         torch.backends.cudnn.allow_tf32 = True # allow tf32 on cudnn
 
@@ -58,6 +56,18 @@ class Train:
         }
         self.prepare_dataset(dataset_meta=env.dataset_configs[dataset_type])
 
+    def set_seed(self, seed=1337):
+        import random
+        import numpy as np
+        
+        random.seed(seed)
+        np.random.seed(seed)
+        torch.manual_seed(seed)
+        
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed(seed)
+            torch.cuda.manual_seed_all(seed)
+        
     def prepare_dataset(self, dataset_meta):
         print(dataset_meta)
         
@@ -197,6 +207,9 @@ class Train:
     
     def train(self, resume=True):
         model, optimizer, iter_num, best_val_loss = self.get_model(resume=resume)
+
+        if not resume:
+            self.set_seed(1337)
 
         X, Y = self.get_batch('train')
         
