@@ -79,7 +79,7 @@ class DatasetConfig(BaseConfig):
 
 @dataclass
 class AttnConfig(BaseConfig):
-    pass
+    mlp_ratio: int
 
 @dataclass
 class PosConfig(BaseConfig):
@@ -131,10 +131,10 @@ class ModelType(Enum):
     GPT2_XL = ModelConfig(name="gpt2-xl", block_size=1024, vocab_size=50257, n_layer=48, n_head=25, n_embd=1600, dropout=0.0, bias=True, gqa_kv_head=None)  # 1558M
 
 class AttnType(Enum):
-    MHA = AttnConfig(name="attn_mha")
-    GQA = AttnConfig(name="attn_gqa")
-    MQA = AttnConfig(name="attn_mqa")
-    MLA = AttnConfig(name="attn_mla")
+    MHA = AttnConfig(name="attn_mha", mlp_ratio=4)
+    GQA = AttnConfig(name="attn_gqa", mlp_ratio=5)
+    MQA = AttnConfig(name="attn_mqa", mlp_ratio=6)
+    MLA = AttnConfig(name="attn_mla", mlp_ratio=6)
 
 class PosType(Enum):
     WPE = PosConfig(name="pos_wpe")
@@ -244,7 +244,7 @@ parser.add_argument("--train_type", type=str, default="RESEARCH")
 parser.add_argument("--dataset_type", type=str, default="OPENWEBTEXT")
 parser.add_argument("--model_type", type=str, default="RESEARCH")
 parser.add_argument("--attn_type", type=str, default="MHA")
-parser.add_argument("--pos_type", type=str, default="WPE")
+parser.add_argument("--pos_type", type=str, default="ROPE")
 parser.add_argument("--norm_type", type=str, default="RMS")
 
 parser.add_argument("--max_new_tokens", type=int, default=100000)
