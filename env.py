@@ -1,10 +1,14 @@
 from enum import Enum
 
+class AttnConfig:
+    def __init__(self, name):
+        self.name = name
+
 class AttnType(Enum):
-    MHA = "mha"
-    GQA = "gqa"
-    MQA = "mqa"
-    MLA = "mla"
+    MHA = AttnConfig(name="mha")
+    GQA = AttnConfig(name="gqa")
+    MQA = AttnConfig(name="mqa")
+    MLA = AttnConfig(name="mla")
 
 class PosType(Enum):
     WPE = "wpe"
