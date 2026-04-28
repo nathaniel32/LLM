@@ -1,39 +1,9 @@
 import math
-from dataclasses import dataclass, asdict
-from typing import Optional
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
 from abc import ABC, abstractmethod
-from env import AttnType, PosType, NormType
-from enum import Enum
-
-@dataclass
-class ModelConfig:
-    block_size: int
-    vocab_size: int
-    n_layer: int
-    n_head: int
-    n_embd: int
-    dropout: float
-    bias: bool
-    gqa_kv_head: Optional[int] = None
-
-@dataclass
-class ArchConfig:
-    model_type: str
-    attn_type: AttnType
-    pos_type: PosType
-    norm_type: NormType
-    
-    @property
-    def out_dir(self) -> str:
-        import os
-        return os.path.join('out', self.model_type, self.norm_type.value, self.pos_type.value, self.attn_type.value)
-    
-    def to_dict(self):
-        d = {k: (v.value if isinstance(v, Enum) else v) for k, v in asdict(self).items()}
-        return d
+from config import Configs, AttnType, PosType, NormType
 
 class BaseKVCache(ABC):
     def __init__(self, block_size):
@@ -126,32 +96,32 @@ class RMSNorm(nn.Module):
         return x / rms * self.weight
 
 class BaseSelfAttention(nn.Module):
-    def __init__(self, config:ModelConfig, arch_config:ArchConfig):
+    def __init__(self, configs:Configs):
         super().__init__()
+        self.model_config = configs.model_type.value
 
-        assert config.n_embd % config.n_head == 0
+        assert self.model_config.n_embd % self.model_config.n_head == 0
 
-        self.is_rope = True if arch_config.pos_type == PosType.ROPE else False
+        self.is_rope = True if configs.pos_type == PosType.ROPE else False
 
-        self.n_head = config.n_head
-        self.head_dim = config.n_embd // config.n_head # 64
+        self.n_head = self.model_config.n_head
+        self.head_dim = self.model_config.n_embd // self.model_config.n_head # 64
 
         # regularization
-        self.attn_dropout = nn.Dropout(config.dropout)
-        self.resid_dropout = nn.Dropout(config.dropout)
+        self.attn_dropout = nn.Dropout(self.model_config.dropout)
+        self.resid_dropout = nn.Dropout(self.model_config.dropout)
         
-        self.config = config
         self.flash = hasattr(torch.nn.functional, 'scaled_dot_product_attention')
         if not self.flash:
             print("WARNING: using slow attention")
             # causal mask to ensure that attention is only applied to the left in the input sequence
-            self.register_buffer("bias", torch.tril(torch.ones(config.block_size, config.block_size)).view(1, 1, config.block_size, config.block_size))
+            self.register_buffer("bias", torch.tril(torch.ones(self.model_config.block_size, self.model_config.block_size)).view(1, 1, self.model_config.block_size, self.model_config.block_size))
             #self.bias = torch.tril(torch.ones(config.block_size, config.block_size)).view(1, 1, config.block_size, config.block_size).to('cuda') # torch.Size([1, 1, 1024, 1024])
 
     def _causal_attention(self, q, k, v, T, head_dim):
         if self.flash:
             is_causal = T > 1
-            y = torch.nn.functional.scaled_dot_product_attention(q, k, v, attn_mask=None, dropout_p=self.config.dropout if self.training else 0, is_causal=is_causal)
+            y = torch.nn.functional.scaled_dot_product_attention(q, k, v, attn_mask=None, dropout_p=self.model_config.dropout if self.training else 0, is_causal=is_causal)
         else:
             # Attention
             att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(head_dim)) # torch.Size([1, 12, 7, 7])
@@ -211,21 +181,21 @@ class BaseSelfAttention(nn.Module):
 
 class CausalSelfAttention(BaseSelfAttention):
     
-    def __init__(self, config:ModelConfig, arch_config:ArchConfig, n_kv_head):
-        super().__init__(config, arch_config)
+    def __init__(self, configs:Configs, n_kv_head):
+        super().__init__(configs)
 
-        self.cache = KVCache(config.block_size)
+        self.cache = KVCache(self.model_config.block_size)
 
-        assert config.n_head % n_kv_head == 0
+        assert self.model_config.n_head % n_kv_head == 0
         self.n_kv_head = n_kv_head
 
-        self.kv_repeat = config.n_head // n_kv_head # 3
+        self.kv_repeat = self.model_config.n_head // n_kv_head # 3
         self.kv_dim = n_kv_head * self.head_dim
 
-        self.c_attn = nn.Linear(config.n_embd, config.n_embd + 2 * self.kv_dim, bias=config.bias)
+        self.c_attn = nn.Linear(self.model_config.n_embd, self.model_config.n_embd + 2 * self.kv_dim, bias=self.model_config.bias)
 
         # output projection
-        self.c_proj = nn.Linear(config.n_embd, config.n_embd, bias=config.bias) # torch.Size([768]) -> torch.Size([768])
+        self.c_proj = nn.Linear(self.model_config.n_embd, self.model_config.n_embd, bias=self.model_config.bias) # torch.Size([768]) -> torch.Size([768])
         
     def forward(self, x:torch.Tensor, use_cache: bool = False):
         B, T, C = x.size() # torch.Size([1, 7, 768])
@@ -262,8 +232,8 @@ class CausalSelfAttention(BaseSelfAttention):
         return y
 
 class MultiHeadLatentAttention(BaseSelfAttention):
-    def __init__(self, config:ModelConfig, arch_config:ArchConfig, efficient=True):
-        super().__init__(config, arch_config)
+    def __init__(self, configs:Configs, efficient=True):
+        super().__init__(configs)
         self.efficient = efficient
         
         self.qk_nope_head_dim = self.head_dim // 4
@@ -274,22 +244,22 @@ class MultiHeadLatentAttention(BaseSelfAttention):
         self.q_lora_dim = 0
         self.kv_lora_dim = self.head_dim * 2 # config.n_embd // 8
 
-        self.cache = KVCache(config.block_size) if not efficient else MLAKVCache(config.block_size, self.kv_lora_dim, self.qk_rope_head_dim)
+        self.cache = KVCache(self.model_config.block_size) if not efficient else MLAKVCache(self.model_config.block_size, self.kv_lora_dim, self.qk_rope_head_dim)
 
         # Query compression
         if self.q_lora_dim == 0:
-            self.wq = nn.Linear(config.n_embd, self.n_head * self.qk_head_dim, bias=config.bias)
+            self.wq = nn.Linear(self.model_config.n_embd, self.n_head * self.qk_head_dim, bias=self.model_config.bias)
         else:
-            self.q_down = nn.Linear(config.n_embd, self.q_lora_dim, bias=config.bias)
+            self.q_down = nn.Linear(self.model_config.n_embd, self.q_lora_dim, bias=self.model_config.bias)
             self.q_norm = RMSNorm(self.q_lora_dim)
-            self.q_up = nn.Linear(self.q_lora_dim, self.n_head * self.qk_head_dim, bias=config.bias)
+            self.q_up = nn.Linear(self.q_lora_dim, self.n_head * self.qk_head_dim, bias=self.model_config.bias)
 
         # KV compression
-        self.kv_down = nn.Linear(config.n_embd, self.kv_lora_dim + self.qk_rope_head_dim, bias=config.bias)
+        self.kv_down = nn.Linear(self.model_config.n_embd, self.kv_lora_dim + self.qk_rope_head_dim, bias=self.model_config.bias)
         self.kv_norm = RMSNorm(self.kv_lora_dim)
-        self.kv_up = nn.Linear(self.kv_lora_dim, self.n_head * (self.qk_nope_head_dim+self.v_head_dim), bias=config.bias)
+        self.kv_up = nn.Linear(self.kv_lora_dim, self.n_head * (self.qk_nope_head_dim+self.v_head_dim), bias=self.model_config.bias)
 
-        self.c_proj = nn.Linear(self.n_head * self.v_head_dim, config.n_embd, bias=config.bias)
+        self.c_proj = nn.Linear(self.n_head * self.v_head_dim, self.model_config.n_embd, bias=self.model_config.bias)
 
     def forward(self, x: torch.Tensor, use_cache: bool = False):
         B, T, C = x.size()
@@ -386,12 +356,12 @@ class MultiHeadLatentAttention(BaseSelfAttention):
 
 class MLP(nn.Module):
 
-    def __init__(self, config:ModelConfig):
+    def __init__(self, configs:Configs):
         super().__init__()
-        self.c_fc    = nn.Linear(config.n_embd, 4 * config.n_embd, bias=config.bias)
+        self.c_fc    = nn.Linear(configs.model_type.value.n_embd, 4 * configs.model_type.value.n_embd, bias=configs.model_type.value.bias)
         self.gelu    = nn.GELU()
-        self.c_proj  = nn.Linear(4 * config.n_embd, config.n_embd, bias=config.bias)
-        self.dropout = nn.Dropout(config.dropout)
+        self.c_proj  = nn.Linear(4 * configs.model_type.value.n_embd, configs.model_type.value.n_embd, bias=configs.model_type.value.bias)
+        self.dropout = nn.Dropout(configs.model_type.value.dropout)
 
     def forward(self, x:torch.Tensor) -> torch.Tensor:
         x = self.c_fc(x) # torch.Size([1, 7, 768]) -> torch.Size([1, 7, 3072])
@@ -403,30 +373,30 @@ class MLP(nn.Module):
 class Block(nn.Module):
     "attention + MLP + Norm"
 
-    def __init__(self, config:ModelConfig, arch_config:ArchConfig):
+    def __init__(self, configs:Configs):
         super().__init__()
 
-        if arch_config.norm_type == NormType.RMS:
-            self.ln_1 = RMSNorm(config.n_embd)
-            self.ln_2 = RMSNorm(config.n_embd)
-        elif arch_config.norm_type == NormType.LAYER:
+        if configs.norm_type == NormType.RMS:
+            self.ln_1 = RMSNorm(configs.model_type.value.n_embd)
+            self.ln_2 = RMSNorm(configs.model_type.value.n_embd)
+        elif configs.norm_type == NormType.LAYER:
             print("Using LayerNorm!")
-            self.ln_1 = LayerNorm(config.n_embd, bias=config.bias)
-            self.ln_2 = LayerNorm(config.n_embd, bias=config.bias)
+            self.ln_1 = LayerNorm(configs.model_type.value.n_embd, bias=configs.model_type.value.bias)
+            self.ln_2 = LayerNorm(configs.model_type.value.n_embd, bias=configs.model_type.value.bias)
         
-        if arch_config.attn_type == AttnType.MLA:
-            self.attn = MultiHeadLatentAttention(config, arch_config)
+        if configs.attn_type == AttnType.MLA:
+            self.attn = MultiHeadLatentAttention(configs)
         else:
-            if arch_config.attn_type == AttnType.MHA:
-                n_kv_head = config.n_head
-            elif arch_config.attn_type == AttnType.GQA:
-                n_kv_head=config.gqa_kv_head
-            elif arch_config.attn_type == AttnType.MQA:
+            if configs.attn_type == AttnType.MHA:
+                n_kv_head = configs.model_type.value.n_head
+            elif configs.attn_type == AttnType.GQA:
+                n_kv_head=configs.model_type.value.gqa_kv_head
+            elif configs.attn_type == AttnType.MQA:
                 n_kv_head = 1
             
-            self.attn = CausalSelfAttention(config, arch_config, n_kv_head=n_kv_head)
+            self.attn = CausalSelfAttention(configs, n_kv_head=n_kv_head)
 
-        self.mlp = MLP(config)
+        self.mlp = MLP(configs)
 
     def forward(self, x:torch.Tensor, use_cache: bool = False) -> torch.Tensor:
         x = x + self.attn(self.ln_1(x), use_cache=use_cache)
@@ -436,20 +406,20 @@ class Block(nn.Module):
 class Transformer(nn.Module):
     "Embedding → Block → Block → Block → lm_head"
 
-    def __init__(self, config:ModelConfig, arch_config:ArchConfig):
+    def __init__(self, configs:Configs):
         super().__init__()
-        self.config = config
-        self.is_wpe = True if arch_config.pos_type == PosType.WPE else False
-        print({'is_wpe': self.is_wpe, 'pos_type': arch_config.pos_type.value})
+        self.configs = configs
+        self.is_wpe = True if configs.pos_type == PosType.WPE else False
+        print({'is_wpe': self.is_wpe, 'pos_type': configs.pos_type.value})
 
         self.transformer = nn.ModuleDict(dict(
-            wte = nn.Embedding(config.vocab_size, config.n_embd), # Weight Token Embedding -> torch.Size([50257, 768])
-            wpe = nn.Embedding(config.block_size, config.n_embd) if self.is_wpe else None, # Weight Position Embedding -> torch.Size([1024, 768])
-            drop = nn.Dropout(config.dropout),
-            h = nn.ModuleList([Block(config, arch_config) for _ in range(config.n_layer)]),
-            ln_f = RMSNorm(config.n_embd) if arch_config.norm_type == NormType.RMS else LayerNorm(config.n_embd, bias=config.bias),
+            wte = nn.Embedding(configs.model_type.value.vocab_size, configs.model_type.value.n_embd), # Weight Token Embedding -> torch.Size([50257, 768])
+            wpe = nn.Embedding(configs.model_type.value.block_size, configs.model_type.value.n_embd) if self.is_wpe else None, # Weight Position Embedding -> torch.Size([1024, 768])
+            drop = nn.Dropout(configs.model_type.value.dropout),
+            h = nn.ModuleList([Block(configs) for _ in range(configs.model_type.value.n_layer)]),
+            ln_f = RMSNorm(configs.model_type.value.n_embd) if configs.norm_type == NormType.RMS else LayerNorm(configs.model_type.value.n_embd, bias=configs.model_type.value.bias),
         ))
-        self.lm_head = nn.Linear(config.n_embd, config.vocab_size, bias=False) # torch.Size([50257, 768]) | 768 input features & 50257 output features
+        self.lm_head = nn.Linear(configs.model_type.value.n_embd, configs.model_type.value.vocab_size, bias=False) # torch.Size([50257, 768]) | 768 input features & 50257 output features
         self.transformer.wte.weight = self.lm_head.weight # weight tying
 
         # init all weights
@@ -457,7 +427,7 @@ class Transformer(nn.Module):
         # apply special scaled init to the residual projections, per GPT-2 paper
         for pn, p in self.named_parameters():
             if pn.endswith('c_proj.weight'):
-                torch.nn.init.normal_(p, mean=0.0, std=0.02/math.sqrt(2 * config.n_layer))
+                torch.nn.init.normal_(p, mean=0.0, std=0.02/math.sqrt(2 * configs.model_type.value.n_layer))
 
         # report number of parameters
         print("number of parameters: %.2fM" % (self.get_num_params()/1e6,))
@@ -517,8 +487,8 @@ class Transformer(nn.Module):
     
     def estimate_mfu(self, fwdbwd_per_iter, dt, flops_promised=6.45e12):
         N = self.get_num_params()
-        cfg = self.config
-        L, H, Q, T = cfg.n_layer, cfg.n_head, cfg.n_embd//cfg.n_head, cfg.block_size
+        model_config = self.configs.model_type.value
+        L, H, Q, T = model_config.n_layer, model_config.n_head, model_config.n_embd//model_config.n_head, model_config.block_size
         flops_per_token = 6*N + 12*L*H*Q*T
         flops_per_fwdbwd = flops_per_token * T
         flops_per_iter = flops_per_fwdbwd * fwdbwd_per_iter
@@ -532,7 +502,7 @@ class Transformer(nn.Module):
     def forward(self, idx, targets=None, use_cache: bool = False):
         device = idx.device
         b, t = idx.size()
-        assert t <= self.config.block_size, f"Cannot forward sequence of length {t}, block size is only {self.config.block_size}"
+        assert t <= self.configs.model_type.value.block_size, f"Cannot forward sequence of length {t}, block size is only {self.configs.model_type.value.block_size}"
         
         tok_emb = self.transformer.wte(idx) # token embeddings of shape (b, t, n_embd) -> torch.Size([1, 7, 768])
         

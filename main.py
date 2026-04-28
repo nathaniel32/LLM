@@ -1,57 +1,41 @@
 import torch
 from torch.nn import functional as F
 from contextlib import nullcontext
-from model import Transformer, ModelConfig, ArchConfig
+from model import Transformer
 import tiktoken
 from benchmark import Benchmark
-from env import AttnType, PosType, NormType
+from config import Configs, AttnType, PosType, NormType, ModelType, args, args_configs
 
 class Main:
-    def __init__(self, use_cache=False, stream=False):
+    def __init__(self, configs:Configs, use_cache=False, stream=False):
         seed = 1337
         torch.manual_seed(seed)
         torch.cuda.manual_seed(seed)
         torch.backends.cuda.matmul.allow_tf32 = True # allow tf32 on matmul
         torch.backends.cudnn.allow_tf32 = True # allow tf32 on cudnn
 
+        self.configs = configs
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
-        dtype = 'float16'
-        ptdtype = {'float32': torch.float32, 'bfloat16': torch.bfloat16, 'float16': torch.float16}[dtype]
+        ptdtype = {'float32': torch.float32, 'bfloat16': torch.bfloat16, 'float16': torch.float16}[configs.train_type.value.dtype]
         self.ctx = nullcontext() if self.device == 'cpu' else torch.amp.autocast(device_type=self.device, dtype=ptdtype)
         self.use_cache = use_cache
         self.stream = stream
         self.benchmark = Benchmark(device=self.device)
 
-    @staticmethod
-    def from_pretrained(model_type):
-        assert model_type in {'gpt2', 'gpt2-medium', 'gpt2-large', 'gpt2-xl'}
-
+    def from_pretrained(self):
         from transformers import GPT2LMHeadModel
-        print("loading weights from pretrained gpt: %s" % model_type)
-        config_args = {
-            'gpt2':         dict(n_layer=12, n_head=12, n_embd=768),  # 124M params
-            'gpt2-medium':  dict(n_layer=24, n_head=16, n_embd=1024), # 350M params
-            'gpt2-large':   dict(n_layer=36, n_head=20, n_embd=1280), # 774M params
-            'gpt2-xl':      dict(n_layer=48, n_head=25, n_embd=1600), # 1558M params
-        }[model_type]
 
-        config_args['vocab_size'] = 50257 # always 50257 for GPT model checkpoints
-        config_args['block_size'] = 1024 # always 1024 for GPT model checkpoints
-        config_args['bias'] = True # always True for GPT model checkpoints
-        config_args['dropout'] = 0.0
-
-        print(config_args)
-        
         # create a from-scratch initialized minGPT model
-        config = ModelConfig(**config_args)
-        arch_config = ArchConfig(model_type=model_type, attn_type=AttnType.MHA, pos_type=PosType.WPE, norm_type=NormType.LAYER)
-        model = Transformer(config, arch_config)
+        self.configs = Configs(model_type=self.configs.model_type, attn_type=AttnType.MHA, pos_type=PosType.WPE, norm_type=NormType.LAYER)
+        print(self.configs)
+
+        model = Transformer(self.configs)
         sd = model.state_dict()
         sd_keys = sd.keys()
         sd_keys = [k for k in sd_keys if not k.endswith('.attn.bias')] # discard this mask / buffer, not a param
 
         # init a huggingface/transformers model
-        model_hf = GPT2LMHeadModel.from_pretrained(model_type)
+        model_hf = GPT2LMHeadModel.from_pretrained(self.configs.model_type.value.name)
         sd_hf = model_hf.state_dict()
 
         # copy while ensuring all of the parameters are aligned and match in names and shapes
@@ -74,18 +58,17 @@ class Main:
                 with torch.no_grad():
                     sd[k].copy_(sd_hf[k])
 
-        return model, arch_config
+        return model
     
-    def from_out(self, arch_config:ArchConfig):
+    def from_out(self):
         import os
         
-        ckpt_path = os.path.join(arch_config.out_dir, 'ckpt.pt')
+        ckpt_path = os.path.join(self.configs.out_dir, 'ckpt.pt')
         
         checkpoint = torch.load(ckpt_path, map_location=self.device)
-        gptconf = ModelConfig(**checkpoint['model_args'])
-        arch_config = ArchConfig(**checkpoint['arch_args'])
+        self.configs = Configs(**checkpoint['args'])
         
-        model = Transformer(gptconf, arch_config)
+        model = Transformer(self.configs)
         state_dict = checkpoint['model']
         unwanted_prefix = '_orig_mod.'
         
@@ -94,8 +77,8 @@ class Main:
                 state_dict[k[len(unwanted_prefix):]] = state_dict.pop(k)
         
         model.load_state_dict(state_dict)
-        print({'attn_type':arch_config.attn_type.value, 'pos_type':arch_config.pos_type.value, 'norm_type':arch_config.norm_type.value})
-        return model, arch_config
+        print(self.configs.to_dict())
+        return model
     
     @torch.no_grad()
     def generate(self, idx, model:Transformer, enc:tiktoken.Encoding, max_new_tokens, temperature=1.0, top_k=None, stop_token=False):
@@ -115,7 +98,6 @@ class Main:
             if self.use_cache and index > 0:
                 idx_cond = idx[:, [-1]]
             else:
-                #idx_cond = idx if idx.size(1) <= model.config.block_size else idx[:, -model.config.block_size:]
                 idx_cond = idx
 
             logits, _ = model(idx_cond, use_cache=self.use_cache)
@@ -147,7 +129,7 @@ class Main:
                 text = enc.decode(idx[0].tolist())
                 print('\033[u\033[J' + text, end='', flush=True)
 
-            if model.config.block_size < idx.size(-1):
+            if self.configs.model_type.value.block_size < idx.size(-1):
                 print("Block full!")
                 break
 
@@ -172,8 +154,8 @@ class Main:
 
         print("Warm-up done.\n")
 
-    def run(self, arch_config:ArchConfig, max_new_tokens, start, temperature=0.8, top_k=200, pretrained=None):
-        model, arch_config = self.from_out(arch_config) if pretrained is None else self.from_pretrained(pretrained)
+    def run(self, max_new_tokens, start, temperature=0.8, top_k=200, pretrained=False):
+        model = self.from_pretrained() if pretrained else self.from_out()
         model.eval()
         model.to(self.device)
 
@@ -190,38 +172,23 @@ class Main:
         text = enc.decode(y[0].tolist())
 
         label = "use_cache=True" if self.use_cache else "use_cache=False"
-        print(f'\n[{label}] - [{arch_config.attn_type}] - [{arch_config.model_type}] - [{arch_config.pos_type}] - [{arch_config.norm_type}]')
+        print(f'\n[{label}]', self.configs.to_dict())
         print('Total Token:', len(y[0]))
         print('-'*100)
 
         return text, y
 
-import argparse
-parser = argparse.ArgumentParser()
-parser.add_argument("--no-cache", action="store_false", dest="use_cache")
-parser.add_argument("--print-out", action="store_true", dest="print_out")
-parser.add_argument("--max_new_tokens", type=int, default=100000)
-parser.add_argument("--model_type", type=str, default="research")
-parser.add_argument("--attn_type", type=str, default="mha")
-parser.add_argument("--pos_type", type=str, default="wpe")
-parser.add_argument("--norm_type", type=str, default="rms")
-parser.add_argument("--start", type=str, default="the colors of the German flag are")
-parser.add_argument("--compare", action="store_true")
-parser.add_argument("--pretrained", type=str)
-args = parser.parse_args()
 print(vars(args))
 
-arch_config = ArchConfig(model_type=args.model_type, attn_type=AttnType(args.attn_type), pos_type=PosType(args.pos_type), norm_type=NormType(args.norm_type))
-
-main = Main(use_cache=args.use_cache)
-text, y = main.run(arch_config, args.max_new_tokens, args.start, pretrained=args.pretrained)
+main = Main(configs=args_configs, use_cache=args.use_cache)
+text, y = main.run(args.max_new_tokens, args.start, pretrained=args.pretrained)
 
 if args.print_out:
     print(text)
 
 if args.compare:
-    main_1 = Main(use_cache=not args.use_cache)
-    text_1, y_1 = main_1.run(arch_config, args.max_new_tokens, args.start, pretrained=args.pretrained)
+    main_1 = Main(configs=args_configs, use_cache=not args.use_cache)
+    text_1, y_1 = main_1.run(args.max_new_tokens, args.start, pretrained=args.pretrained)
     
     if torch.equal(y, y_1):
         print("== OK ==")
