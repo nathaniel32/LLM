@@ -387,9 +387,9 @@ class Block(nn.Module):
         if configs.attn_type == AttnType.MLA:
             self.attn = MultiHeadLatentAttention(configs)
         else:
-            if configs.attn_type.value.kv_head is not None:
+            if configs.attn_type.value.kv_head is not None: # MQA, GQA
                 n_kv_head = configs.attn_type.value.kv_head
-            else:
+            else: # MHA
                 n_kv_head = configs.model_type.value.n_head
             
             print("KV_HEAD:", n_kv_head)
