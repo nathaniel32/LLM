@@ -109,19 +109,21 @@ class TrainConfig(BaseConfig):
     beta1: float
     beta2: float
 
+#########################################################################################
+
 class DatasetType(Enum):
-    OPENWEBTEXT = DatasetConfig(name="openwebtext", url=None, dir_path="D:/Datasets/LLM/openwebtext")
-    SHAKESPEARE = DatasetConfig(name="shakespeare", url='https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt', dir_path=None)
-    SIMPLE_TEXT = DatasetConfig(name="simple_text", url='https://raw.githubusercontent.com/uwgraphics/VEP2_TCP_SimpleText/refs/heads/main/N3/N37535.txt', dir_path=None)
-    WIKI_INDO = DatasetConfig(name="wiki_indo", url='https://id.wikipedia.org/w/index.php?title=Indonesia&action=raw', dir_path=None)
-    WIKI_INDO_JSON = DatasetConfig(name="wiki_indo_json", url='https://id.wikipedia.org/w/api.php?action=query&format=json&prop=extracts&titles=Indonesia&explaintext=1', dir_path=None)
+    OPENWEBTEXT = DatasetConfig(name="dataset_openwebtext", url=None, dir_path="D:/Datasets/LLM/openwebtext")
+    SHAKESPEARE = DatasetConfig(name="dataset_shakespeare", url='https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt', dir_path=None)
+    SIMPLE_TEXT = DatasetConfig(name="dataset_simple_text", url='https://raw.githubusercontent.com/uwgraphics/VEP2_TCP_SimpleText/refs/heads/main/N3/N37535.txt', dir_path=None)
+    WIKI_INDO = DatasetConfig(name="dataset_wiki_indo", url='https://id.wikipedia.org/w/index.php?title=Indonesia&action=raw', dir_path=None)
+    WIKI_INDO_JSON = DatasetConfig(name="dataset_wiki_indo_json", url='https://id.wikipedia.org/w/api.php?action=query&format=json&prop=extracts&titles=Indonesia&explaintext=1', dir_path=None)
 
 class ModelType(Enum):
-    RESEARCH = ModelConfig(name="research", block_size=512, vocab_size=50257, n_layer=6, n_head=12, n_embd=768, dropout=0.0, bias=False, gqa_kv_head=4)
-    SMALL = ModelConfig(name="small", block_size=1024, vocab_size=50257, n_layer=12, n_head=12, n_embd=768, dropout=0.0, bias=False, gqa_kv_head=4)
-    MEDIUM = ModelConfig(name="medium", block_size=1024, vocab_size=50257, n_layer=24, n_head=16, n_embd=1024, dropout=0.0, bias=False, gqa_kv_head=4)
-    LARGE = ModelConfig(name="large", block_size=1024, vocab_size=50257, n_layer=36, n_head=20, n_embd=1280, dropout=0.0, bias=False, gqa_kv_head=6)
-    XL = ModelConfig(name="xl", block_size=1024, vocab_size=50257, n_layer=48, n_head=25, n_embd=1600, dropout=0.0, bias=False, gqa_kv_head=6)
+    RESEARCH = ModelConfig(name="model_research", block_size=512, vocab_size=50257, n_layer=6, n_head=12, n_embd=768, dropout=0.0, bias=False, gqa_kv_head=4)
+    SMALL = ModelConfig(name="model_small", block_size=1024, vocab_size=50257, n_layer=12, n_head=12, n_embd=768, dropout=0.0, bias=False, gqa_kv_head=4)
+    MEDIUM = ModelConfig(name="model_medium", block_size=1024, vocab_size=50257, n_layer=24, n_head=16, n_embd=1024, dropout=0.0, bias=False, gqa_kv_head=4)
+    LARGE = ModelConfig(name="model_large", block_size=1024, vocab_size=50257, n_layer=36, n_head=20, n_embd=1280, dropout=0.0, bias=False, gqa_kv_head=6)
+    XL = ModelConfig(name="model_xl", block_size=1024, vocab_size=50257, n_layer=48, n_head=25, n_embd=1600, dropout=0.0, bias=False, gqa_kv_head=6)
     
     GPT2 = ModelConfig(name="gpt2", block_size=1024, vocab_size=50257, n_layer=12, n_head=12, n_embd=768,  dropout=0.0, bias=True, gqa_kv_head=None)  # 124M
     GPT2_MEDIUM = ModelConfig(name="gpt2-medium", block_size=1024, vocab_size=50257, n_layer=24, n_head=16, n_embd=1024, dropout=0.0, bias=True, gqa_kv_head=None)  # 350M
@@ -129,22 +131,22 @@ class ModelType(Enum):
     GPT2_XL = ModelConfig(name="gpt2-xl", block_size=1024, vocab_size=50257, n_layer=48, n_head=25, n_embd=1600, dropout=0.0, bias=True, gqa_kv_head=None)  # 1558M
 
 class AttnType(Enum):
-    MHA = AttnConfig(name="mha")
-    GQA = AttnConfig(name="gqa")
-    MQA = AttnConfig(name="mqa")
-    MLA = AttnConfig(name="mla")
+    MHA = AttnConfig(name="attn_mha")
+    GQA = AttnConfig(name="attn_gqa")
+    MQA = AttnConfig(name="attn_mqa")
+    MLA = AttnConfig(name="attn_mla")
 
 class PosType(Enum):
-    WPE = PosConfig(name="wpe")
-    ROPE = PosConfig(name="rope")
+    WPE = PosConfig(name="pos_wpe")
+    ROPE = PosConfig(name="pos_rope")
 
 class NormType(Enum):
-    RMS = NormConfig(name="rms")
-    LAYER = NormConfig(name="layer")
+    RMS = NormConfig(name="norm_rms")
+    LAYER = NormConfig(name="norm_layer")
 
 class TrainType(Enum):
     DEFAULT = TrainConfig(
-        name="default",
+        name="train_default",
         batch_size=2,
         max_iters=600000,
         gradient_accumulation_steps=5,
@@ -164,7 +166,7 @@ class TrainType(Enum):
         beta2=0.95
     )
     RESEARCH = TrainConfig(
-        name="research",
+        name="train_research",
         batch_size=4,                        # Increased for better VRAM utilization
         max_iters=20_000,                    # ~655M tokens, sufficient for thesis comparison
         gradient_accumulation_steps=8,       # Effective batch size = 32 (4 x 8)
@@ -183,6 +185,8 @@ class TrainType(Enum):
         beta1=0.9,
         beta2=0.95
     )
+
+#########################################################################################
 
 @dataclass
 class Configs:
