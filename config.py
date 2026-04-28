@@ -9,17 +9,6 @@ class BaseConfig(ABC):
     name: str
 
 @dataclass
-class ModelConfig(BaseConfig):
-    block_size: int
-    vocab_size: int
-    n_layer: int
-    n_head: int
-    n_embd: int
-    dropout: float
-    bias: bool
-    gqa_kv_head: Optional[int] = None
-
-@dataclass
 class DatasetConfig(BaseConfig):
     root_dir: str = field(init=False)
     url: Optional[str]
@@ -78,8 +67,19 @@ class DatasetConfig(BaseConfig):
             raise Exception("Datasets not found!")
 
 @dataclass
+class ModelConfig(BaseConfig):
+    block_size: int
+    vocab_size: int
+    n_layer: int
+    n_head: int
+    n_embd: int
+    dropout: float
+    bias: bool
+
+@dataclass
 class AttnConfig(BaseConfig):
     mlp_ratio: int
+    kv_head: Optional[int] = None
 
 @dataclass
 class PosConfig(BaseConfig):
@@ -119,21 +119,21 @@ class DatasetType(Enum):
     WIKI_INDO_JSON = DatasetConfig(name="dataset_wiki_indo_json", url='https://id.wikipedia.org/w/api.php?action=query&format=json&prop=extracts&titles=Indonesia&explaintext=1', dir_path=None)
 
 class ModelType(Enum):
-    RESEARCH = ModelConfig(name="model_research", block_size=512, vocab_size=50257, n_layer=6, n_head=12, n_embd=768, dropout=0.0, bias=False, gqa_kv_head=4)
-    SMALL = ModelConfig(name="model_small", block_size=1024, vocab_size=50257, n_layer=12, n_head=12, n_embd=768, dropout=0.0, bias=False, gqa_kv_head=4)
-    MEDIUM = ModelConfig(name="model_medium", block_size=1024, vocab_size=50257, n_layer=24, n_head=16, n_embd=1024, dropout=0.0, bias=False, gqa_kv_head=4)
-    LARGE = ModelConfig(name="model_large", block_size=1024, vocab_size=50257, n_layer=36, n_head=20, n_embd=1280, dropout=0.0, bias=False, gqa_kv_head=6)
-    XL = ModelConfig(name="model_xl", block_size=1024, vocab_size=50257, n_layer=48, n_head=25, n_embd=1600, dropout=0.0, bias=False, gqa_kv_head=6)
+    RESEARCH = ModelConfig(name="model_research", block_size=512, vocab_size=50257, n_layer=6, n_head=12, n_embd=768, dropout=0.0, bias=False)
+    SMALL = ModelConfig(name="model_small", block_size=1024, vocab_size=50257, n_layer=12, n_head=12, n_embd=768, dropout=0.0, bias=False)
+    MEDIUM = ModelConfig(name="model_medium", block_size=1024, vocab_size=50257, n_layer=24, n_head=16, n_embd=1024, dropout=0.0, bias=False)
+    LARGE = ModelConfig(name="model_large", block_size=1024, vocab_size=50257, n_layer=36, n_head=20, n_embd=1280, dropout=0.0, bias=False)
+    XL = ModelConfig(name="model_xl", block_size=1024, vocab_size=50257, n_layer=48, n_head=25, n_embd=1600, dropout=0.0, bias=False)
     
-    GPT2 = ModelConfig(name="gpt2", block_size=1024, vocab_size=50257, n_layer=12, n_head=12, n_embd=768,  dropout=0.0, bias=True, gqa_kv_head=None)  # 124M
-    GPT2_MEDIUM = ModelConfig(name="gpt2-medium", block_size=1024, vocab_size=50257, n_layer=24, n_head=16, n_embd=1024, dropout=0.0, bias=True, gqa_kv_head=None)  # 350M
-    GPT2_LARGE = ModelConfig(name="gpt2-large", block_size=1024, vocab_size=50257, n_layer=36, n_head=20, n_embd=1280, dropout=0.0, bias=True, gqa_kv_head=None)  # 774M
-    GPT2_XL = ModelConfig(name="gpt2-xl", block_size=1024, vocab_size=50257, n_layer=48, n_head=25, n_embd=1600, dropout=0.0, bias=True, gqa_kv_head=None)  # 1558M
+    GPT2 = ModelConfig(name="gpt2", block_size=1024, vocab_size=50257, n_layer=12, n_head=12, n_embd=768,  dropout=0.0, bias=True)  # 124M
+    GPT2_MEDIUM = ModelConfig(name="gpt2-medium", block_size=1024, vocab_size=50257, n_layer=24, n_head=16, n_embd=1024, dropout=0.0, bias=True)  # 350M
+    GPT2_LARGE = ModelConfig(name="gpt2-large", block_size=1024, vocab_size=50257, n_layer=36, n_head=20, n_embd=1280, dropout=0.0, bias=True)  # 774M
+    GPT2_XL = ModelConfig(name="gpt2-xl", block_size=1024, vocab_size=50257, n_layer=48, n_head=25, n_embd=1600, dropout=0.0, bias=True)  # 1558M
 
 class AttnType(Enum):
     MHA = AttnConfig(name="attn_mha", mlp_ratio=4)
-    GQA = AttnConfig(name="attn_gqa", mlp_ratio=5)
-    MQA = AttnConfig(name="attn_mqa", mlp_ratio=5)
+    GQA = AttnConfig(name="attn_gqa", mlp_ratio=5, kv_head=4)
+    MQA = AttnConfig(name="attn_mqa", mlp_ratio=5, kv_head=1)
     MLA = AttnConfig(name="attn_mla", mlp_ratio=5)
 
 class PosType(Enum):

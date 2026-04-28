@@ -387,13 +387,12 @@ class Block(nn.Module):
         if configs.attn_type == AttnType.MLA:
             self.attn = MultiHeadLatentAttention(configs)
         else:
-            if configs.attn_type == AttnType.MHA:
+            if configs.attn_type.value.kv_head is not None:
+                n_kv_head = configs.attn_type.value.kv_head
+            else:
                 n_kv_head = configs.model_type.value.n_head
-            elif configs.attn_type == AttnType.GQA:
-                n_kv_head=configs.model_type.value.gqa_kv_head
-            elif configs.attn_type == AttnType.MQA:
-                n_kv_head = 1
             
+            print("KV_HEAD:", n_kv_head)
             self.attn = CausalSelfAttention(configs, n_kv_head=n_kv_head)
 
         self.mlp = MLP(configs)
