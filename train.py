@@ -143,10 +143,12 @@ class Train:
             'state': asdict(self.train_state)
         }
 
-        print(f"saving checkpoint to {self.configs.out_dir}")
-        
         os.makedirs(self.configs.out_dir, exist_ok=True)
-        torch.save(checkpoint, os.path.join(self.configs.out_dir, filename))
+
+        path = os.path.join(self.configs.out_dir, filename)
+        print(f"saving checkpoint to {path}")
+        
+        torch.save(checkpoint, path)
         print("Checkpoint saved successfully.")
     
     def train(self, resume=True):
