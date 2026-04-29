@@ -59,7 +59,7 @@ class Main:
 
         return model
     
-    def from_out(self, filename='best_checkpoint.pt'):
+    def from_out(self, filename):
         import os
         
         ckpt_path = os.path.join(self.configs.out_dir, filename)
@@ -153,7 +153,7 @@ class Main:
         print("Warm-up done.\n")
 
     def run(self, max_new_tokens, start, temperature=0.8, top_k=200, pretrained=False):
-        model = self.from_pretrained() if pretrained else self.from_out()
+        model = self.from_pretrained() if pretrained else self.from_out(filename='best_checkpoint.pt')
         model.eval()
         model.to(self.device)
 
