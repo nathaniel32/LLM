@@ -130,6 +130,22 @@ class Train:
         model.train()
         return out
     
+    def save_model(self, model, optimizer, scaler, iter_num, best_val_loss, filename):
+        checkpoint = {
+            'model': model.state_dict(),
+            'optimizer': optimizer.state_dict(),
+            'scaler': scaler.state_dict(),
+            'args': asdict(self.configs),
+            'iter_num': iter_num,
+            'best_val_loss': best_val_loss
+        }
+
+        print(f"saving checkpoint to {self.configs.out_dir}")
+        
+        os.makedirs(self.configs.out_dir, exist_ok=True)
+        torch.save(checkpoint, os.path.join(self.configs.out_dir, filename))
+        print("Checkpoint saved successfully.")
+    
     def train(self, resume=True):
         model, optimizer, scaler, iter_num, best_val_loss = self.get_model(resume=resume)
 
@@ -154,20 +170,7 @@ class Train:
                 if losses['val'] < best_val_loss:
                     best_val_loss = losses['val']
                     patience_counter = 0
-                    checkpoint = {
-                        'model': model.state_dict(),
-                        'optimizer': optimizer.state_dict(),
-                        'scaler': scaler.state_dict(),
-                        'args': asdict(self.configs),
-                        'iter_num': iter_num,
-                        'best_val_loss': best_val_loss
-                    }
-
-                    print(f"saving checkpoint to {self.configs.out_dir}")
-                    
-                    os.makedirs(self.configs.out_dir, exist_ok=True)
-                    torch.save(checkpoint, os.path.join(self.configs.out_dir, 'ckpt.pt'))
-                    print("Checkpoint saved successfully.")
+                    self.save_model(model, optimizer, scaler, iter_num, best_val_loss, filename='ckpt.pt')
                 else:
                     patience_counter += 1
 
@@ -237,6 +240,8 @@ class Train:
 
             iter_num += 1
             local_iter_num += 1
+
+        self.save_model(model, optimizer, scaler, iter_num-1, best_val_loss, filename='last.pt')
 
 train = Train(configs=args_configs)
 train.train(resume=args.resume)
