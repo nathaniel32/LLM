@@ -175,13 +175,13 @@ class TrainType(Enum):
         batch_size=6,
         gradient_accumulation_steps=8,       # Effective batch size = 48
         max_iters=15_000,                    # 48*15000*512 = ~368M Token
-        eval_interval=500,
-        eval_iters=200,
+        eval_interval=250,
+        eval_iters=100,
         learning_rate=5e-4,
         patience=None,
         dtype='float32',
         grad_clip=1.0,
-        warmup_iters=500,
+        warmup_iters=1000,
         lr_decay_iters=15_000,
         weight_decay=1e-1,
         min_lr=5e-5,
