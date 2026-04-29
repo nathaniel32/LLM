@@ -82,14 +82,17 @@ class Train:
                 if k.startswith(unwanted_prefix):
                     state_dict[k[len(unwanted_prefix):]] = state_dict.pop(k)
             model.load_state_dict(state_dict)
+            
             iter_num = checkpoint['iter_num']
             best_val_loss = checkpoint['best_val_loss']
+            patience_counter = checkpoint['patience_counter']
 
             optimizer.load_state_dict(checkpoint['optimizer'])
             scaler.load_state_dict(checkpoint['scaler'])
         else:
             iter_num = 0
             best_val_loss = float('inf')
+            patience_counter = 0
         
         self.logger.set_meta({
             "param": model.get_num_params(),
@@ -98,7 +101,7 @@ class Train:
 
         print({'iter_num':iter_num, 'best_val_loss':best_val_loss})
 
-        return model, optimizer, scaler, iter_num, best_val_loss
+        return model, optimizer, scaler, iter_num, best_val_loss, patience_counter
         
     # learning rate decay scheduler (cosine with warmup)
     def get_lr(self, it):
@@ -130,14 +133,15 @@ class Train:
         model.train()
         return out
     
-    def save_model(self, model, optimizer, scaler, iter_num, best_val_loss, filename):
+    def save_model(self, model, optimizer, scaler, iter_num, best_val_loss, patience_counter, filename):
         checkpoint = {
             'model': model.state_dict(),
             'optimizer': optimizer.state_dict(),
             'scaler': scaler.state_dict(),
             'args': asdict(self.configs),
             'iter_num': iter_num,
-            'best_val_loss': best_val_loss
+            'best_val_loss': best_val_loss,
+            'patience_counter': patience_counter
         }
 
         print(f"saving checkpoint to {self.configs.out_dir}")
@@ -147,14 +151,13 @@ class Train:
         print("Checkpoint saved successfully.")
     
     def train(self, resume=True):
-        model, optimizer, scaler, iter_num, best_val_loss = self.get_model(resume=resume)
+        model, optimizer, scaler, iter_num, best_val_loss, patience_counter = self.get_model(resume=resume)
 
         if not resume:
             self.set_seed(1337)
 
         X, Y = self.get_batch('train')
         
-        patience_counter = 0
         local_iter_num = 0
         running_mfu = -1.0
         
@@ -167,12 +170,12 @@ class Train:
             if iter_num % self.configs.train_type.value.eval_interval == 0 or iter_num == self.configs.train_type.value.max_iters:
                 losses = self.estimate_loss(model)
 
-                self.save_model(model, optimizer, scaler, iter_num, best_val_loss, filename='last_checkpoint.pt')
+                self.save_model(model, optimizer, scaler, iter_num, best_val_loss, patience_counter, filename='last_checkpoint.pt')
                 
                 if losses['val'] < best_val_loss:
                     best_val_loss = losses['val']
                     patience_counter = 0
-                    self.save_model(model, optimizer, scaler, iter_num, best_val_loss, filename='best_checkpoint.pt')
+                    self.save_model(model, optimizer, scaler, iter_num, best_val_loss, patience_counter, filename='best_checkpoint.pt')
                 else:
                     patience_counter += 1
 
