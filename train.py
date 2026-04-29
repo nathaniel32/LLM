@@ -53,8 +53,8 @@ class Train:
             x, y = x.to(self.device), y.to(self.device)
         return x, y
     
-    def get_model(self, resume=False):
-        ckpt_path = os.path.join(self.configs.out_dir, 'ckpt.pt')
+    def get_model(self, resume=False, filename='best_checkpoint.pt'):
+        ckpt_path = os.path.join(self.configs.out_dir, filename)
         if not os.path.exists(ckpt_path):
             print("Checkpoint not found!")
             resume = False
@@ -166,11 +166,13 @@ class Train:
 
             if iter_num % self.configs.train_type.value.eval_interval == 0 or iter_num == self.configs.train_type.value.max_iters:
                 losses = self.estimate_loss(model)
+
+                self.save_model(model, optimizer, scaler, iter_num, best_val_loss, filename='last_checkpoint.pt')
                 
                 if losses['val'] < best_val_loss:
                     best_val_loss = losses['val']
                     patience_counter = 0
-                    self.save_model(model, optimizer, scaler, iter_num, best_val_loss, filename='ckpt.pt')
+                    self.save_model(model, optimizer, scaler, iter_num, best_val_loss, filename='best_checkpoint.pt')
                 else:
                     patience_counter += 1
 

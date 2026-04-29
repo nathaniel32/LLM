@@ -59,10 +59,10 @@ class Main:
 
         return model
     
-    def from_out(self):
+    def from_out(self, filename='best_checkpoint.pt'):
         import os
         
-        ckpt_path = os.path.join(self.configs.out_dir, 'ckpt.pt')
+        ckpt_path = os.path.join(self.configs.out_dir, filename)
         
         checkpoint = torch.load(ckpt_path, map_location=self.device)
         self.configs = Configs(**checkpoint['args'])
