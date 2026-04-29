@@ -241,7 +241,5 @@ class Train:
             iter_num += 1
             local_iter_num += 1
 
-        self.save_model(model, optimizer, scaler, iter_num-1, best_val_loss, filename='last.pt')
-
 train = Train(configs=args_configs)
 train.train(resume=args.resume)
