@@ -177,9 +177,9 @@ class Train:
                 self.logger.log(category="val_log", key="iter", metrics={
                     "iter": self.train_state.iter_num,
                     "patience": self.train_state.patience_counter,
+                    'best_val_loss': float(self.train_state.best_val_loss) if self.train_state.best_val_loss != float('inf') else None,
                     "train_loss": float(losses['train']),
                     "val_loss": float(losses['val']),
-                    'best_val_loss': float(self.train_state.best_val_loss) if self.train_state.best_val_loss != float('inf') else None,
                     "lr": lr
                 })
 
