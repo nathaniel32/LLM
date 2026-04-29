@@ -119,7 +119,7 @@ class DatasetType(Enum):
     WIKI_INDO_JSON = DatasetConfig(name="dataset_wiki_indo_json", url='https://id.wikipedia.org/w/api.php?action=query&format=json&prop=extracts&titles=Indonesia&explaintext=1', dir_path=None)
 
 class ModelType(Enum):
-    RESEARCH = ModelConfig(name="model_research", block_size=1024, vocab_size=50257, n_layer=4, n_head=8, n_embd=512, dropout=0.0, bias=False)
+    RESEARCH = ModelConfig(name="model_research", block_size=512, vocab_size=50257, n_layer=6, n_head=8, n_embd=512, dropout=0.0, bias=False)
     SMALL = ModelConfig(name="model_small", block_size=1024, vocab_size=50257, n_layer=12, n_head=12, n_embd=768, dropout=0.0, bias=False)
     MEDIUM = ModelConfig(name="model_medium", block_size=1024, vocab_size=50257, n_layer=24, n_head=16, n_embd=1024, dropout=0.0, bias=False)
     LARGE = ModelConfig(name="model_large", block_size=1024, vocab_size=50257, n_layer=36, n_head=20, n_embd=1280, dropout=0.0, bias=False)
@@ -133,13 +133,13 @@ class ModelType(Enum):
 class AttnType(Enum):
     MHA = AttnConfig(name="attn_mha", mlp_ratio=4)
     
-    GQA_STD = AttnConfig(name="attn_gqa_std", mlp_ratio=4, kv_head=2)
-    MQA_STD = AttnConfig(name="attn_mqa_std", mlp_ratio=4, kv_head=1)
-    MLA_STD = AttnConfig(name="attn_mla_std", mlp_ratio=4)
-
     GQA_ISO = AttnConfig(name="attn_gqa_iso", mlp_ratio=4.75, kv_head=2)
     MQA_ISO = AttnConfig(name="attn_mqa_iso", mlp_ratio=4.875, kv_head=1)
     MLA_ISO = AttnConfig(name="attn_mla_iso", mlp_ratio=5.125)
+    
+    GQA_STD = AttnConfig(name="attn_gqa_std", mlp_ratio=4, kv_head=2)
+    MQA_STD = AttnConfig(name="attn_mqa_std", mlp_ratio=4, kv_head=1)
+    MLA_STD = AttnConfig(name="attn_mla_std", mlp_ratio=4)
 
 class PosType(Enum):
     WPE = PosConfig(name="pos_wpe")
@@ -172,20 +172,20 @@ class TrainType(Enum):
     )
     RESEARCH = TrainConfig(
         name="train_research",
-        batch_size=4,                        # Increased for better VRAM utilization
-        gradient_accumulation_steps=8,       # Effective batch size = 32
-        max_iters=15_000,                    # ~491M tokens (8*4*15000*1024 / 10^6), enough for clear separation
-        eval_interval=500,                   # More frequent evaluation to see fine-grained differences
-        eval_iters=100,                      
-        learning_rate=2e-3,                  # High learning rate to test architectural stability
-        patience=None,                       
-        dtype='float32',                     
+        batch_size=6,
+        gradient_accumulation_steps=8,       # Effective batch size = 48
+        max_iters=15_000,                    # 48*15000*512 = ~368M Token
+        eval_interval=500,
+        eval_iters=200,
+        learning_rate=5e-4,
+        patience=None,
+        dtype='float32',
         grad_clip=1.0,
-        warmup_iters=1000,                   
-        lr_decay_iters=15_000,               
+        warmup_iters=500,
+        lr_decay_iters=15_000,
         weight_decay=1e-1,
-        min_lr=2e-4,                         
-        log_interval=10,                     
+        min_lr=5e-5,
+        log_interval=10,
         decay_lr=True,
         beta1=0.9,
         beta2=0.95
