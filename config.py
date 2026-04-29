@@ -15,7 +15,8 @@ class DatasetConfig(BaseConfig):
     dir_path: Optional[str]
 
     def __post_init__(self):
-        self.root_dir = os.path.join('datasets', self.name)
+        root = os.path.dirname(os.path.abspath(__file__))
+        self.root_dir = os.path.join(root, 'datasets', self.name)
 
     def prepare_dataset(self):
         import requests
