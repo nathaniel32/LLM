@@ -8,6 +8,13 @@ import time
 from config import Configs, args, args_configs
 from logger import Logger
 from dataclasses import asdict
+from dataclasses import dataclass
+
+@dataclass
+class TrainState:
+    iter_num = 0
+    best_val_loss = float('inf')
+    patience_counter = 0
 
 class Train:
     def __init__(self, configs:Configs):
@@ -16,7 +23,8 @@ class Train:
         torch.backends.cudnn.allow_tf32 = True # allow tf32 on cudnn
 
         self.configs = configs
-
+        self.train_state = TrainState()
+        
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         ptdtype = {'float32': torch.float32, 'bfloat16': torch.bfloat16, 'float16': torch.float16}[self.configs.train_type.value.dtype]
         self.ctx = nullcontext() if self.device == 'cpu' else torch.amp.autocast(device_type=self.device, dtype=ptdtype)
@@ -67,6 +75,7 @@ class Train:
             checkpoint = torch.load(ckpt_path, map_location=self.device)
             self.configs = Configs(**checkpoint['args'])
             state_dict = checkpoint['model']
+            self.train_state = Configs(**checkpoint['state'])
             
             print(self.configs.info())
         else:
@@ -83,25 +92,15 @@ class Train:
                     state_dict[k[len(unwanted_prefix):]] = state_dict.pop(k)
             model.load_state_dict(state_dict)
             
-            iter_num = checkpoint['iter_num']
-            best_val_loss = checkpoint['best_val_loss']
-            patience_counter = checkpoint['patience_counter']
-
             optimizer.load_state_dict(checkpoint['optimizer'])
             scaler.load_state_dict(checkpoint['scaler'])
-        else:
-            iter_num = 0
-            best_val_loss = float('inf')
-            patience_counter = 0
         
         self.logger.set_meta({
             "param": model.get_num_params(),
             **self.configs.to_dict()
         })
 
-        print({'iter_num':iter_num, 'best_val_loss':best_val_loss})
-
-        return model, optimizer, scaler, iter_num, best_val_loss, patience_counter
+        return model, optimizer, scaler
         
     # learning rate decay scheduler (cosine with warmup)
     def get_lr(self, it):
@@ -133,15 +132,13 @@ class Train:
         model.train()
         return out
     
-    def save_model(self, model, optimizer, scaler, iter_num, best_val_loss, patience_counter, filename):
+    def save_model(self, model, optimizer, scaler, filename):
         checkpoint = {
             'model': model.state_dict(),
             'optimizer': optimizer.state_dict(),
             'scaler': scaler.state_dict(),
             'args': asdict(self.configs),
-            'iter_num': iter_num,
-            'best_val_loss': best_val_loss,
-            'patience_counter': patience_counter
+            'state': asdict(self.train_state)
         }
 
         print(f"saving checkpoint to {self.configs.out_dir}")
@@ -151,7 +148,7 @@ class Train:
         print("Checkpoint saved successfully.")
     
     def train(self, resume=True):
-        model, optimizer, scaler, iter_num, best_val_loss, patience_counter = self.get_model(resume=resume)
+        model, optimizer, scaler = self.get_model(resume=resume)
 
         if not resume:
             self.set_seed(1337)
@@ -163,40 +160,40 @@ class Train:
         
         while True:
             # determine and set the learning rate for this iteration
-            lr = self.get_lr(iter_num) if self.configs.train_type.value.decay_lr else self.configs.train_type.value.learning_rate
+            lr = self.get_lr(self.train_state.iter_num) if self.configs.train_type.value.decay_lr else self.configs.train_type.value.learning_rate
             for param_group in optimizer.param_groups:
                 param_group['lr'] = lr
 
-            if iter_num % self.configs.train_type.value.eval_interval == 0 or iter_num == self.configs.train_type.value.max_iters:
+            if self.train_state.iter_num % self.configs.train_type.value.eval_interval == 0 or self.train_state.iter_num == self.configs.train_type.value.max_iters:
                 losses = self.estimate_loss(model)
 
-                self.save_model(model, optimizer, scaler, iter_num, best_val_loss, patience_counter, filename='last_checkpoint.pt')
+                self.save_model(model, optimizer, scaler, filename='last_checkpoint.pt')
                 
-                if losses['val'] < best_val_loss:
-                    best_val_loss = losses['val']
-                    patience_counter = 0
-                    self.save_model(model, optimizer, scaler, iter_num, best_val_loss, patience_counter, filename='best_checkpoint.pt')
+                if losses['val'] < self.train_state.best_val_loss:
+                    self.train_state.best_val_loss = losses['val']
+                    self.train_state.patience_counter = 0
+                    self.save_model(model, optimizer, scaler, filename='best_checkpoint.pt')
                 else:
-                    patience_counter += 1
+                    self.train_state.patience_counter += 1
 
                 self.logger.log(category="val_log", key="iter", metrics={
-                    "iter": iter_num,
-                    "patience": patience_counter,
+                    "iter": self.train_state.iter_num,
+                    "patience": self.train_state.patience_counter,
                     "train_loss": float(losses['train']),
                     "val_loss": float(losses['val']),
-                    'best_val_loss': float(best_val_loss) if best_val_loss != float('inf') else None,
+                    'best_val_loss': float(self.train_state.best_val_loss) if self.train_state.best_val_loss != float('inf') else None,
                     "lr": lr
                 })
 
                 if self.configs.train_type.value.patience is not None:
-                    if patience_counter >= self.configs.train_type.value.patience:
-                        print(f"Early stopping triggered at iter {iter_num} after {patience_counter} evaluations without improvement.")
+                    if self.train_state.patience_counter >= self.configs.train_type.value.patience:
+                        print(f"Early stopping triggered at iter {self.train_state.iter_num} after {self.train_state.patience_counter} evaluations without improvement.")
                         break
                     else:
-                        print(f"Patience: {patience_counter}/{self.configs.train_type.value.patience}")
+                        print(f"Patience: {self.train_state.patience_counter}/{self.configs.train_type.value.patience}")
 
-                if iter_num == self.configs.train_type.value.max_iters:
-                    print(f"Reached max iterations: {iter_num}. Stopping training!")
+                if self.train_state.iter_num == self.configs.train_type.value.max_iters:
+                    print(f"Reached max iterations: {self.train_state.iter_num}. Stopping training!")
                     break
 
             previous_time = time.time()
@@ -228,7 +225,7 @@ class Train:
             current_time = time.time()
             delta_time = current_time - previous_time
             
-            if iter_num % self.configs.train_type.value.log_interval == 0:
+            if self.train_state.iter_num % self.configs.train_type.value.log_interval == 0:
                 # get loss as float. note: this is a CPU-GPU sync point
                 # scale up to undo the division above, approximating the true total loss (exact would have been a sum)
                 lossf = loss.item() * self.configs.train_type.value.gradient_accumulation_steps
@@ -237,13 +234,13 @@ class Train:
                     running_mfu = mfu if running_mfu == -1.0 else 0.9*running_mfu + 0.1*mfu
                 
                 self.logger.log(category="train_log", key="iter", metrics={
-                    "iter": iter_num,
+                    "iter": self.train_state.iter_num,
                     "train_loss": float(lossf),
                     "time_ms": delta_time*1000,
                     "mfu_percent": running_mfu * 100 if running_mfu >= 0 else None
                 })
 
-            iter_num += 1
+            self.train_state.iter_num += 1
             local_iter_num += 1
 
 train = Train(configs=args_configs)
