@@ -141,13 +141,13 @@ class Train:
         local_iter_num = 0
         running_mfu = -1.0
         
-        while iter_num <= self.configs.train_type.value.max_iters:
+        while True:
             # determine and set the learning rate for this iteration
             lr = self.get_lr(iter_num) if self.configs.train_type.value.decay_lr else self.configs.train_type.value.learning_rate
             for param_group in optimizer.param_groups:
                 param_group['lr'] = lr
 
-            if iter_num % self.configs.train_type.value.eval_interval == 0:
+            if iter_num % self.configs.train_type.value.eval_interval == 0 or iter_num == self.configs.train_type.value.max_iters:
                 losses = self.estimate_loss(model)
                 
                 if losses['val'] < best_val_loss:
@@ -184,6 +184,10 @@ class Train:
                         break
                     else:
                         print(f"Patience: {patience_counter}/{self.configs.train_type.value.patience}")
+
+                if iter_num == self.configs.train_type.value.max_iters:
+                    print(f"Reached max iterations: {iter_num}. Stopping training!")
+                    break
 
             previous_time = time.time()
 
