@@ -141,7 +141,7 @@ class Train:
         local_iter_num = 0
         running_mfu = -1.0
         
-        while iter_num < self.configs.train_type.value.max_iters:
+        while iter_num <= self.configs.train_type.value.max_iters:
             # determine and set the learning rate for this iteration
             lr = self.get_lr(iter_num) if self.configs.train_type.value.decay_lr else self.configs.train_type.value.learning_rate
             for param_group in optimizer.param_groups:
