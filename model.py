@@ -385,7 +385,7 @@ class Block(nn.Module):
             self.ln_1 = LayerNorm(configs.model_type.value.n_embd, bias=configs.model_type.value.bias)
             self.ln_2 = LayerNorm(configs.model_type.value.n_embd, bias=configs.model_type.value.bias)
         
-        if configs.attn_type == AttnType.MLA:
+        if configs.attn_type in (AttnType.MLA_STD, AttnType.MLA_ISO):
             self.attn = MultiHeadLatentAttention(configs)
         else:
             if configs.attn_type.value.kv_head is not None: # MQA, GQA
