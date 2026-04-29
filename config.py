@@ -174,7 +174,7 @@ class TrainType(Enum):
         eval_iters=100,                      
         learning_rate=2e-3,                  # High learning rate to test architectural stability
         patience=None,                       
-        dtype='float16',                     
+        dtype='float32',                     
         grad_clip=1.0,
         warmup_iters=1000,                   
         lr_decay_iters=15_000,               
