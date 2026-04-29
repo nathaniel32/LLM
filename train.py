@@ -12,12 +12,12 @@ from dataclasses import dataclass
 
 @dataclass
 class TrainState:
-    iter_num = 0
-    best_val_loss = float('inf')
-    patience_counter = 0
+    iter_num: int = 0
+    best_val_loss: float = float('inf')
+    patience_counter: int = 0
 
     def info(self):
-        return {"iter_num": {self.iter_num}, "best_val_loss": {self.best_val_loss}, "patience_counter": {self.patience_counter}}
+        return {"iter_num": self.iter_num, "best_val_loss": self.best_val_loss, "patience_counter": self.patience_counter}
 
 class Train:
     def __init__(self, configs:Configs):
