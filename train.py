@@ -16,6 +16,9 @@ class TrainState:
     best_val_loss = float('inf')
     patience_counter = 0
 
+    def info(self):
+        return {"iter_num": {self.iter_num}, "best_val_loss": {self.best_val_loss}, "patience_counter": {self.patience_counter}}
+
 class Train:
     def __init__(self, configs:Configs):
         self.set_seed(1337)
@@ -77,6 +80,7 @@ class Train:
             self.train_state = TrainState(**checkpoint['state'])
             
             print(self.configs.info())
+            print(self.train_state.info())
         else:
             print("Initializing a new model from scratch")
         
