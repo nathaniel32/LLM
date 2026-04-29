@@ -132,9 +132,9 @@ class ModelType(Enum):
 
 class AttnType(Enum):
     MHA = AttnConfig(name="attn_mha", mlp_ratio=4)
-    GQA = AttnConfig(name="attn_gqa", mlp_ratio=4, kv_head=2)
-    MQA = AttnConfig(name="attn_mqa", mlp_ratio=4, kv_head=1)
-    MLA = AttnConfig(name="attn_mla", mlp_ratio=4)
+    GQA = AttnConfig(name="attn_gqa", mlp_ratio=4.75, kv_head=2)
+    MQA = AttnConfig(name="attn_mqa", mlp_ratio=4.875, kv_head=1)
+    MLA = AttnConfig(name="attn_mla", mlp_ratio=5.125)
 
 class PosType(Enum):
     WPE = PosConfig(name="pos_wpe")
