@@ -59,6 +59,8 @@ class Train:
             print("Checkpoint not found!")
             resume = False
 
+        scaler = torch.amp.GradScaler(enabled=(self.configs.train_type.value.dtype == 'float16'))
+
         if resume:
             print(f"Resuming training from {self.configs.out_dir}")
             
@@ -84,6 +86,7 @@ class Train:
             best_val_loss = checkpoint['best_val_loss']
 
             optimizer.load_state_dict(checkpoint['optimizer'])
+            scaler.load_state_dict(checkpoint['scaler'])
         else:
             iter_num = 0
             best_val_loss = float('inf')
@@ -95,7 +98,7 @@ class Train:
 
         print({'iter_num':iter_num, 'best_val_loss':best_val_loss})
 
-        return model, optimizer, iter_num, best_val_loss
+        return model, optimizer, scaler, iter_num, best_val_loss
         
     # learning rate decay scheduler (cosine with warmup)
     def get_lr(self, it):
@@ -128,14 +131,12 @@ class Train:
         return out
     
     def train(self, resume=True):
-        model, optimizer, iter_num, best_val_loss = self.get_model(resume=resume)
+        model, optimizer, scaler, iter_num, best_val_loss = self.get_model(resume=resume)
 
         if not resume:
             self.set_seed(1337)
 
         X, Y = self.get_batch('train')
-        
-        scaler = torch.amp.GradScaler(enabled=(self.configs.train_type.value.dtype == 'float16'))
         
         patience_counter = 0
         local_iter_num = 0
@@ -156,6 +157,7 @@ class Train:
                     checkpoint = {
                         'model': model.state_dict(),
                         'optimizer': optimizer.state_dict(),
+                        'scaler': scaler.state_dict(),
                         'args': asdict(self.configs),
                         'iter_num': iter_num,
                         'best_val_loss': best_val_loss
