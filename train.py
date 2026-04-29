@@ -74,8 +74,7 @@ class Train:
             
             checkpoint = torch.load(ckpt_path, map_location=self.device)
             self.configs = Configs(**checkpoint['args'])
-            state_dict = checkpoint['model']
-            self.train_state = Configs(**checkpoint['state'])
+            self.train_state = TrainState(**checkpoint['state'])
             
             print(self.configs.info())
         else:
@@ -86,19 +85,18 @@ class Train:
         optimizer = model.configure_optimizers(self.configs.train_type.value.weight_decay, self.configs.train_type.value.learning_rate, (self.configs.train_type.value.beta1, self.configs.train_type.value.beta2), self.device)
         
         if resume:
+            state_dict = checkpoint['model']
+
             unwanted_prefix = '_orig_mod.'
             for k,v in list(state_dict.items()):
                 if k.startswith(unwanted_prefix):
                     state_dict[k[len(unwanted_prefix):]] = state_dict.pop(k)
-            model.load_state_dict(state_dict)
             
+            model.load_state_dict(state_dict)
             optimizer.load_state_dict(checkpoint['optimizer'])
             scaler.load_state_dict(checkpoint['scaler'])
         
-        self.logger.set_meta({
-            "param": model.get_num_params(),
-            **self.configs.to_dict()
-        })
+        self.logger.set_meta({"param": model.get_num_params(), **self.configs.to_dict()})
 
         return model, optimizer, scaler
         
