@@ -12,7 +12,7 @@ def load_metrics(config):
         
     with open(log_path, 'r', encoding='utf-8') as f:
         data = json.load(f)
-        
+    
     return data
 
 def plot_attention_comparison(configs_list, save_path):
@@ -23,6 +23,9 @@ def plot_attention_comparison(configs_list, save_path):
         conf:Configs
 
         log_data = load_metrics(conf)
+
+        if not log_data:
+            continue
         
         val_data = log_data.get('val_log')
             
@@ -69,6 +72,16 @@ mha_conf = Configs(
     norm_type=norm_type
 )
 
+gqa_conf = Configs(
+    flash=True,
+    train_type=train_type,
+    dataset_type=dataset_type,
+    model_type=model_type,
+    attn_type=AttnType.GQA_ISO,
+    pos_type=pos_type,
+    norm_type=norm_type
+)
+
 mqa_conf = Configs(
     flash=True,
     train_type=train_type,
@@ -89,4 +102,4 @@ mla_conf = Configs(
     norm_type=norm_type
 )
 
-plot_attention_comparison([mha_conf, mqa_conf, mla_conf], save_path="out/mqa_vs_mha_loss.png")
+plot_attention_comparison([mha_conf, gqa_conf, mqa_conf, mla_conf], save_path="out/mqa_vs_mha_loss.png")
