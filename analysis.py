@@ -15,68 +15,76 @@ def load_metrics(config):
         
     return data.get('val_log', [])
 
-def plot_attention_comparison(mqa_log, mha_log, save_path):
-    if not mqa_log or not mha_log:
-        print("Incomplete log data. Ensure both models are trained.")
-        return
+def plot_attention_comparison(configs_list, save_path):
+    plt.figure(figsize=(12, 7))
+    cmap = plt.get_cmap('tab10')
 
-    mqa_iters = [log['iter'] for log in mqa_log]
-    mqa_train_loss = [log['train_loss'] for log in mqa_log]
-    mqa_val_loss = [log['val_loss'] for log in mqa_log]
+    for i, conf in enumerate(configs_list):
+        log_data = load_metrics(conf)
+        if not log_data:
+            continue
+            
+        label_name = conf.attn_type.name 
+        col_iters = [d['iter'] for d in log_data]
+        col_val_loss = [d['val_loss'] for d in log_data]
+        
+        plt.plot(col_iters, col_val_loss, '-', 
+                 label=f'{label_name} (Val)', 
+                 linewidth=2.5, 
+                 color=cmap(i))
+        
+        if 'train_loss' in log_data[0]:
+            col_train_loss = [d['train_loss'] for d in log_data]
+            plt.plot(col_iters, col_train_loss, '--', 
+                     alpha=0.3, 
+                     color=cmap(i))
 
-    mha_iters = [log['iter'] for log in mha_log]
-    mha_train_loss = [log['train_loss'] for log in mha_log]
-    mha_val_loss = [log['val_loss'] for log in mha_log]
-
-    plt.figure(figsize=(10, 6))
-
-    plt.plot(mqa_iters, mqa_train_loss, '--', label='MQA Train Loss', color='blue')
-    plt.plot(mqa_iters, mqa_val_loss, '-', label='MQA Val Loss', color='blue', linewidth=2)
-
-    plt.plot(mha_iters, mha_train_loss, '--', label='MHA Train Loss', color='red')
-    plt.plot(mha_iters, mha_val_loss, '-', label='MHA Val Loss', color='red', linewidth=2)
-
-    plt.xlabel('Iterations')
-    plt.ylabel('Loss')
-    plt.title('MQA vs MHA Training and Validation Loss Comparison')
-    plt.legend(loc='upper right')
-    plt.grid(True, linestyle=':', alpha=0.6)
-
+    plt.yscale('log')
+    plt.title('Attention Variants Performance Comparison', fontsize=14, pad=15)
+    plt.xlabel('Iterations', fontsize=12)
+    plt.ylabel('Loss (Log Scale)', fontsize=12)
+    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0.)
+    plt.grid(True, which="both", ls="-", alpha=0.15)
     plt.tight_layout()
 
-    out_dir = os.path.dirname(save_path)
-    if out_dir:
-        os.makedirs(out_dir, exist_ok=True)
-
-    plt.savefig(save_path, dpi=300)
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    plt.savefig(save_path, dpi=300, bbox_inches='tight')
     plt.show()
 
 train_type = TrainType.RESEARCH
 model_type = ModelType.RESEARCH
 pos_type = PosType.ROPE
 norm_type = NormType.RMS
-
-mqa_conf = Configs(
-    flash=True,
-    train_type=train_type,
-    dataset_type=DatasetType.FINEWEB_EDU,
-    model_type=model_type,
-    attn_type=AttnType.MQA_ISO,
-    pos_type=pos_type,
-    norm_type=norm_type
-)
+dataset_type = DatasetType.FINEWEB_EDU
 
 mha_conf = Configs(
     flash=True,
     train_type=train_type,
-    dataset_type=DatasetType.FINEWEB_EDU,
+    dataset_type=dataset_type,
     model_type=model_type,
     attn_type=AttnType.MHA,
     pos_type=pos_type,
     norm_type=norm_type
 )
 
-mqa_data = load_metrics(mqa_conf)
-mha_data = load_metrics(mha_conf)
+mqa_conf = Configs(
+    flash=True,
+    train_type=train_type,
+    dataset_type=dataset_type,
+    model_type=model_type,
+    attn_type=AttnType.MQA_ISO,
+    pos_type=pos_type,
+    norm_type=norm_type
+)
 
-plot_attention_comparison(mqa_data[3:], mha_data[3:], save_path="out/mqa_vs_mha_loss.png")
+mla_conf = Configs(
+    flash=True,
+    train_type=train_type,
+    dataset_type=dataset_type,
+    model_type=model_type,
+    attn_type=AttnType.MLA_ISO,
+    pos_type=pos_type,
+    norm_type=norm_type
+)
+
+plot_attention_comparison([mha_conf, mqa_conf, mla_conf], save_path="out/mqa_vs_mha_loss.png")
