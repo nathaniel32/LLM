@@ -53,12 +53,12 @@ if __name__ == "__main__":
     parser.add_argument("--val_ratio", type=float, default=0.01)
     parser.add_argument("--check_data", action="store_true")
     parser.add_argument("--data_name", type=str, default='openwebtext')
-    parser.add_argument("--out_dir", type=str, default='datasets')
+    parser.add_argument("--root_dir", type=str, default='datasets')
     args = parser.parse_args()
 
     if not args.check_data:
         if args.max_samples:
-            prepare_data(max_samples=args.max_samples, val_ratio=args.val_ratio, data_name=args.data_name, root_dir=args.out_dir)
+            prepare_data(max_samples=args.max_samples, val_ratio=args.val_ratio, data_name=args.data_name, root_dir=args.root_dir)
         else:
             print("max_samples not found!")
     else:
