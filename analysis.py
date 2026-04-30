@@ -1,7 +1,7 @@
 import os
 import json
 import matplotlib.pyplot as plt
-from config import Configs, TrainType, DatasetType, ModelType, AttnType, PosType, NormType
+from config import Configs, AttnType, train_type, model_type, pos_type, norm_type, dataset_type
 
 def load_metrics(config):
     log_path = os.path.join(config.out_dir, 'metrics.json')
@@ -55,12 +55,6 @@ def plot_attention_comparison(configs_list, save_path):
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
     plt.savefig(save_path, dpi=300, bbox_inches='tight')
     plt.show()
-
-train_type = TrainType.RESEARCH
-model_type = ModelType.RESEARCH
-pos_type = PosType.ROPE
-norm_type = NormType.RMS
-dataset_type = DatasetType.FINEWEB_EDU
 
 mha_conf = Configs(
     flash=True,

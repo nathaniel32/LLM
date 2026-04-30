@@ -264,4 +264,11 @@ parser.add_argument("--no_resume", action="store_false", dest="resume")
 
 args = parser.parse_args()
 
-args_configs = Configs(flash=args.flash, train_type=TrainType[args.train_type.upper()], dataset_type=DatasetType[args.dataset_type.upper()], model_type=ModelType[args.model_type.upper()], attn_type=AttnType[args.attn_type.upper()], pos_type=PosType[args.pos_type.upper()], norm_type=NormType[args.norm_type.upper()])
+train_type = TrainType[args.train_type.upper()]
+dataset_type = DatasetType[args.dataset_type.upper()]
+model_type = ModelType[args.model_type.upper()]
+attn_type = AttnType[args.attn_type.upper()]
+pos_type = PosType[args.pos_type.upper()]
+norm_type = NormType[args.norm_type.upper()]
+
+args_configs = Configs(flash=args.flash, train_type=train_type, dataset_type=dataset_type, model_type=model_type, attn_type=attn_type, pos_type=pos_type, norm_type=norm_type)
