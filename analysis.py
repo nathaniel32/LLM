@@ -13,28 +13,30 @@ def load_metrics(config):
     with open(log_path, 'r', encoding='utf-8') as f:
         data = json.load(f)
         
-    return data.get('val_log', [])
+    return data
 
 def plot_attention_comparison(configs_list, save_path):
     plt.figure(figsize=(12, 7))
     cmap = plt.get_cmap('tab10')
 
     for i, conf in enumerate(configs_list):
+        conf:Configs
+
         log_data = load_metrics(conf)
-        if not log_data:
-            continue
+        
+        val_data = log_data.get('val_log')
             
-        label_name = conf.attn_type.name 
-        col_iters = [d['iter'] for d in log_data]
-        col_val_loss = [d['val_loss'] for d in log_data]
+        label_name = f"{conf.attn_type.name} - {log_data['param']}"
+        col_iters = [d['iter'] for d in val_data]
+        col_val_loss = [d['val_loss'] for d in val_data]
         
         plt.plot(col_iters, col_val_loss, '-', 
-                 label=f'{label_name} (Val)', 
+                 label=label_name, 
                  linewidth=2.5, 
                  color=cmap(i))
         
-        if 'train_loss' in log_data[0]:
-            col_train_loss = [d['train_loss'] for d in log_data]
+        if 'train_loss' in val_data[0]:
+            col_train_loss = [d['train_loss'] for d in val_data]
             plt.plot(col_iters, col_train_loss, '--', 
                      alpha=0.3, 
                      color=cmap(i))
