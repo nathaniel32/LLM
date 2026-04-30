@@ -202,7 +202,7 @@ class Configs:
         
         import os
         flash_str = "flash" if self.flash else "no_flash"
-        return os.path.join(self.out_root, self.dataset_type.value.name, self.model_type.value.name, self.norm_type.value.name, self.train_type.value.name, self.pos_type.value.name, self.attn_type.value.name, flash_str)
+        return os.path.join(self.out_root, self.dataset_type.value.name, self.model_type.value.name, self.norm_type.value.name, self.train_type.value.name, self.pos_type.value.name, flash_str, self.attn_type.value.name)
     
     def info(self):
         m = self.model_type.value
