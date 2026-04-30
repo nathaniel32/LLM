@@ -92,23 +92,23 @@ class NormConfig(BaseConfig):
 
 @dataclass
 class TrainConfig(BaseConfig):
-    batch_size: int
-    max_iters: int
-    gradient_accumulation_steps: int
-    eval_interval: int
-    eval_iters: int
-    learning_rate: float
-    patience: Optional[int]
     dtype: str
-    grad_clip: Optional[float]
-    warmup_iters: int
-    lr_decay_iters: int
-    weight_decay: float
     min_lr: float
+    learning_rate: float
+    batch_size: int
+    gradient_accumulation_steps: int
+    max_iters: int
+    lr_decay_iters: int
+    warmup_iters: int
+    eval_iters: int
+    eval_interval: int
     log_interval: int
-    decay_lr: bool
+    grad_clip: Optional[float]
+    weight_decay: float
     beta1: float
     beta2: float
+    patience: Optional[int]
+    decay_lr: bool
 
 #########################################################################################
 
@@ -119,7 +119,7 @@ class DatasetType(Enum):
     SHAKESPEARE = DatasetConfig(name="shakespeare", url='https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt', dir_path=None)
 
 class ModelType(Enum):
-    RESEARCH = ModelConfig(name="model_research", block_size=512, vocab_size=50257, n_layer=6, n_head=8, n_embd=512, dropout=0.0, bias=False)
+    RESEARCH = ModelConfig(name="model_research", block_size=512, vocab_size=50257, n_layer=2, n_head=25, n_embd=1600, dropout=0.0, bias=False)
     
     SMALL = ModelConfig(name="model_small", block_size=1024, vocab_size=50257, n_layer=12, n_head=12, n_embd=768, dropout=0.0, bias=False)
     MEDIUM = ModelConfig(name="model_medium", block_size=1024, vocab_size=50257, n_layer=24, n_head=16, n_embd=1024, dropout=0.0, bias=False)
@@ -151,45 +151,31 @@ class NormType(Enum):
     LAYER = NormConfig(name="norm_layer")
 
 class TrainType(Enum):
-    DEFAULT = TrainConfig(
-        name="train_default",
-        batch_size=2,
-        max_iters=600000,
-        gradient_accumulation_steps=5,
-        eval_interval=500,
-        eval_iters=200,
-        learning_rate=6e-4,
-        patience=20,
-        dtype='float16',
-        grad_clip=1.0,
-        warmup_iters=2000,
-        lr_decay_iters=600000,
-        weight_decay=1e-1,
-        min_lr=6e-5,
-        log_interval=1,
-        decay_lr=True,
-        beta1=0.9,
-        beta2=0.95
-    )
     RESEARCH = TrainConfig(
         name="train_fast_research",
+        dtype='float16',
+
+        min_lr=1e-5,
+        learning_rate=3e-4,
+
         batch_size=4,
         gradient_accumulation_steps=4,
+
         max_iters=3000,
-        eval_interval=100,
-        eval_iters=50,
-        learning_rate=3e-4,
-        patience=None,
-        dtype='float16',
-        grad_clip=1.0,
-        warmup_iters=200,
         lr_decay_iters=3000,
-        weight_decay=0.05,
-        min_lr=1e-5,
+        warmup_iters=200,
+        eval_iters=50,
+
+        eval_interval=100,
         log_interval=10,
-        decay_lr=True,
+
+        grad_clip=1.0,
+        weight_decay=0.05,
         beta1=0.9,
-        beta2=0.95
+        beta2=0.95,
+
+        patience=None,
+        decay_lr=True
     )
 
 #########################################################################################
