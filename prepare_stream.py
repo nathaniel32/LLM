@@ -4,8 +4,8 @@ import numpy as np
 import tiktoken
 from datasets import load_dataset
 
-def prepare_data(max_samples, val_ratio, data_name, root_dir):
-    out_dir = os.path.join(root_dir, data_name)
+def prepare_data(max_samples, val_ratio, data_name, out_root_dir):
+    out_dir = os.path.join(out_root_dir, data_name)
     os.makedirs(out_dir, exist_ok=True)
 
     enc = tiktoken.get_encoding("gpt2")
@@ -49,20 +49,17 @@ def read_bin_file(file_path, num_tokens=50):
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument("--max_samples", type=int) #8013769
+    parser.add_argument("--max_samples", type=int, required=True) #8013769
     parser.add_argument("--val_ratio", type=float, default=0.01)
-    parser.add_argument("--data_name", type=str, default='openwebtext')
-    parser.add_argument("--root_dir", type=str, default='datasets') # root_out_dir
-    parser.add_argument("--check_data", action="store_true")
+    parser.add_argument("--data_name", type=str, default='HuggingFaceFW/fineweb-edu')
+    parser.add_argument("--out_root_dir", type=str, default='datasets')
+    parser.add_argument("--check_path", type=str)
 
     args = parser.parse_args()
 
-    if not args.check_data:
-        if args.max_samples:
-            prepare_data(max_samples=args.max_samples, val_ratio=args.val_ratio, data_name=args.data_name, root_dir=args.root_dir)
-        else:
-            print("max_samples not found!")
+    if args.check_path is None:
+        prepare_data(max_samples=args.max_samples, val_ratio=args.val_ratio, data_name=args.data_name, out_root_dir=args.out_root_dir)
     else:
-        total_tokens, decoded_text = read_bin_file(os.path.join(args.root_dir, args.data_name, 'val.bin'), 500)
-        print(f"- Total: {total_tokens}")
-        print(f"- Text: \n{decoded_text}")
+        total_tokens, decoded_text = read_bin_file(args.check_path, args.max_samples)
+        print(f"- Text: \n{total_tokens}")
+        print(f"- Total: {decoded_text}")
