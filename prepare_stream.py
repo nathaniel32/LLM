@@ -4,12 +4,12 @@ import numpy as np
 import tiktoken
 from datasets import load_dataset
 
-def prepare_data(max_samples, val_ratio, data_name, out_root_dir):
-    out_dir = os.path.join(out_root_dir, data_name)
+def prepare_data(max_samples, val_ratio, hs_path, hs_name, out_root_dir):
+    out_dir = os.path.join(out_root_dir, hs_path)
     os.makedirs(out_dir, exist_ok=True)
 
     enc = tiktoken.get_encoding("gpt2")
-    dataset = load_dataset(data_name, split="train", streaming=True)
+    dataset = load_dataset(hs_path, name=hs_name, split="train", streaming=True)
     dataset = dataset.shuffle(seed=42, buffer_size=10_000)
 
     val_size = int(max_samples * val_ratio)
@@ -52,15 +52,19 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--max_samples", type=int, required=True)
     parser.add_argument("--val_ratio", type=float, default=0.01)
-    parser.add_argument("--data_name", type=str, default='HuggingFaceFW/fineweb-edu')
+    parser.add_argument("--hs_path", type=str, default='HuggingFaceFW/fineweb-edu')
+    parser.add_argument("--hs_name", type=str)
     parser.add_argument("--out_root_dir", type=str, default='datasets')
     parser.add_argument("--check_path", type=str)
 
     args = parser.parse_args()
 
     if args.check_path is None:
-        prepare_data(max_samples=args.max_samples, val_ratio=args.val_ratio, data_name=args.data_name, out_root_dir=args.out_root_dir)
+        prepare_data(max_samples=args.max_samples, val_ratio=args.val_ratio, hs_path=args.hs_path, hs_name=args.hs_name, out_root_dir=args.out_root_dir)
     else:
         total_tokens, decoded_text = read_bin_file(args.check_path, args.max_samples)
         print(f"- Text: \n{decoded_text}")
         print(f"- Total: {total_tokens}")
+
+# py prepare_stream.py --max_samples 10000 --hs_path "HuggingFaceFW/fineweb-edu" 
+# py prepare_stream.py --max_samples 10000 --hs_path "allenai/c4" --hs_name id
