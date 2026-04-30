@@ -93,8 +93,6 @@ class NormConfig(BaseConfig):
 @dataclass
 class TrainConfig(BaseConfig):
     dtype: str
-    min_lr: float
-    learning_rate: float
     batch_size: int
     gradient_accumulation_steps: int
     max_iters: int
@@ -103,6 +101,8 @@ class TrainConfig(BaseConfig):
     eval_iters: int
     eval_interval: int
     log_interval: int
+    min_lr: float
+    learning_rate: float
     grad_clip: Optional[float]
     weight_decay: float
     beta1: float
@@ -155,9 +155,6 @@ class TrainType(Enum):
         name="train_fast_research",
         dtype='float16',
 
-        min_lr=1e-5,
-        learning_rate=3e-4,
-
         batch_size=4,
         gradient_accumulation_steps=4,
 
@@ -168,6 +165,9 @@ class TrainType(Enum):
 
         eval_interval=100,
         log_interval=10,
+
+        min_lr=1e-5,
+        learning_rate=3e-4,
 
         grad_clip=1.0,
         weight_decay=0.05,
