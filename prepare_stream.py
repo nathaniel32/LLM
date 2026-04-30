@@ -63,6 +63,6 @@ if __name__ == "__main__":
         else:
             print("max_samples not found!")
     else:
-        total_tokens, decoded_text = read_bin_file(os.path.join(args.out_dir, args.data_name, 'val.bin'), 500)
+        total_tokens, decoded_text = read_bin_file(os.path.join(args.root_dir, args.data_name, 'val.bin'), 500)
         print(f"- Total: {total_tokens}")
         print(f"- Text: \n{decoded_text}")
