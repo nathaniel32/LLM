@@ -10,9 +10,11 @@ def prepare_data(max_samples, val_ratio, data_name, out_root_dir):
 
     enc = tiktoken.get_encoding("gpt2")
     dataset = load_dataset(data_name, split="train", streaming=True)
+    dataset = dataset.shuffle(seed=42, buffer_size=10_000)
 
-    val_step = int(1 / val_ratio) if val_ratio > 0 else 0
-    print({"val_step": val_step})
+    val_size = int(max_samples * val_ratio)
+    train_size = max_samples - val_size
+    print(f"Train samples: {train_size:,}, Val samples: {val_size:,}")
 
     train_tokens_count = 0
     val_tokens_count = 0
@@ -20,16 +22,15 @@ def prepare_data(max_samples, val_ratio, data_name, out_root_dir):
     with open(os.path.join(out_dir, "train.bin"), "wb") as f_train, \
          open(os.path.join(out_dir, "val.bin"), "wb") as f_val:
 
-        for i, example in enumerate(tqdm(dataset, desc="Processing")):
+        for i, example in enumerate(tqdm(dataset, total=max_samples, desc="Processing")):
             if i >= max_samples:
                 break
 
             ids = enc.encode_ordinary(example["text"])
             ids.append(enc.eot_token)
-
             arr = np.array(ids, dtype=np.uint16)
 
-            if val_step > 0 and i % val_step == 0:
+            if i >= train_size:
                 arr.tofile(f_val)
                 val_tokens_count += len(ids)
             else:
@@ -49,7 +50,7 @@ def read_bin_file(file_path, num_tokens=50):
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument("--max_samples", type=int, required=True) #8013769
+    parser.add_argument("--max_samples", type=int, required=True)
     parser.add_argument("--val_ratio", type=float, default=0.01)
     parser.add_argument("--data_name", type=str, default='HuggingFaceFW/fineweb-edu')
     parser.add_argument("--out_root_dir", type=str, default='datasets')
