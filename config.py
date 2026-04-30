@@ -113,7 +113,8 @@ class TrainConfig(BaseConfig):
 #########################################################################################
 
 class DatasetType(Enum):
-    FINEWEB_EDU = DatasetConfig(name="HuggingFaceFW/fineweb-edu", url=None, dir_path=None)
+    C4_ID = DatasetConfig(name="c4-id", url=None, dir_path=None)
+    FINEWEB_EDU = DatasetConfig(name="fineweb-edu", url=None, dir_path=None)
     OPENWEBTEXT = DatasetConfig(name="openwebtext", url=None, dir_path="D:/Datasets/LLM/openwebtext")
     SHAKESPEARE = DatasetConfig(name="shakespeare", url='https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt', dir_path=None)
 
