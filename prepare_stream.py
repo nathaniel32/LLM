@@ -40,6 +40,7 @@ def prepare_data(max_samples, val_ratio, hs_path, hs_name, out_root_dir):
 
     print(f"Train tokens: {train_tokens_count:,}")
     print(f"Val tokens: {val_tokens_count:,}")
+    print(f"Out dir: {out_dir}")
 
 def read_bin_file(file_path, num_tokens=50):
     enc = tiktoken.get_encoding("gpt2")
@@ -67,5 +68,5 @@ if __name__ == "__main__":
         print(f"- Text: \n{decoded_text}")
         print(f"- Total: {total_tokens}")
 
-# py prepare_stream.py --max_samples 10000 --hs_path "HuggingFaceFW/fineweb-edu" 
+# py prepare_stream.py --max_samples 10000 --hs_path "HuggingFaceFW/fineweb-edu" --out_root_dir D:\Datasets\LLM
 # py prepare_stream.py --max_samples 10000 --hs_path "allenai/c4" --hs_name id
