@@ -26,7 +26,7 @@ class Main:
         from transformers import GPT2LMHeadModel
 
         # create a from-scratch initialized minGPT model
-        self.configs = Configs(model_type=self.configs.model_type, attn_type=AttnType.MHA, pos_type=PosType.WPE, norm_type=NormType.LAYER)
+        self.configs = Configs(flash=True, model_type=self.configs.model_type, attn_type=AttnType.MHA, pos_type=PosType.WPE, norm_type=NormType.LAYER)
 
         model = Transformer(self.configs)
         sd = model.state_dict()

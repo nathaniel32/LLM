@@ -116,13 +116,13 @@ class TrainConfig(BaseConfig):
 class AttnType(Enum):
     MHA = AttnConfig(name="attn_mha", mlp_ratio=4)
     
-    GQA_ISO = AttnConfig(name="attn_gqa_iso", mlp_ratio=4.75, kv_head=2)
-    MQA_ISO = AttnConfig(name="attn_mqa_iso", mlp_ratio=4.875, kv_head=1)
-    MLA_ISO = AttnConfig(name="attn_mla_iso", mlp_ratio=5.125, is_mla=True)
+    GQA_ISO = AttnConfig(name="attn_gqa_iso", mlp_ratio=4.99, kv_head=2)
+    MQA_ISO = AttnConfig(name="attn_mqa_iso", mlp_ratio=5, kv_head=1)
+    MLA_ISO = AttnConfig(name="attn_mla_iso", mlp_ratio=5.16, is_mla=True)
     
-    GQA_STD = AttnConfig(name="attn_gqa_std", mlp_ratio=4, kv_head=2)
-    MQA_STD = AttnConfig(name="attn_mqa_std", mlp_ratio=4, kv_head=1)
-    MLA_STD = AttnConfig(name="attn_mla_std", mlp_ratio=4, is_mla=True)
+    #GQA_STD = AttnConfig(name="attn_gqa_std", mlp_ratio=4, kv_head=2)
+    #MQA_STD = AttnConfig(name="attn_mqa_std", mlp_ratio=4, kv_head=1)
+    #MLA_STD = AttnConfig(name="attn_mla_std", mlp_ratio=4, is_mla=True)
 
 class PosType(Enum):
     WPE = PosConfig(name="pos_wpe")
@@ -194,10 +194,37 @@ class Configs:
     
     @property
     def out_dir(self) -> str:
+        if self.train_type is None or self.dataset_type is None:
+            raise Exception("path not found!")
+        
         import os
         flash_str = "flash" if self.flash else "no_flash"
         return os.path.join('out', self.dataset_type.value.name, self.model_type.value.name, self.norm_type.value.name, self.train_type.value.name, self.pos_type.value.name, self.attn_type.value.name, flash_str)
     
+    def info(self):
+        m = self.model_type.value
+        t = self.train_type.value if self.train_type else None
+        d = self.dataset_type.value if self.dataset_type else None
+
+        try:
+            out_dir = self.out_dir
+        except Exception as e:
+            out_dir = e
+
+        info_str = [
+            f"{'='*50}",
+            f" CONFIGURATION: {self.model_type.name} on {self.dataset_type.name if self.dataset_type else 'None'} ",
+            f"{'='*50}",
+            f" Arsitektur  : {self.attn_type.name} | {self.pos_type.name} | {self.norm_type.name}",
+            f" Flash Attn  : {'ACTIVE' if self.flash else 'INACTIVE'}",
+            f" Params      : L={m.n_layer}, H={m.n_head}, E={m.n_embd}, B={m.block_size}",
+            f" Training    : LR={t.learning_rate if t else '-'}, Batch={t.batch_size if t else '-'}, Accum={t.gradient_accumulation_steps if t else '-'}",
+            f" Precision   : {t.dtype if t else '-'}",
+            f" Output Dir  : {out_dir}",
+            f"{'='*50}"
+        ]
+        return "\n".join(info_str)
+
     def to_dict(self):
         def _to_dict(obj):
             if isinstance(obj, Enum):
@@ -211,24 +238,6 @@ class Configs:
             else:
                 return obj
         return _to_dict(self)
-    
-    def info(self):
-        m = self.model_type.value
-        t = self.train_type.value
-        
-        info_str = [
-            f"{'='*50}",
-            f" CONFIGURATION: {self.model_type.name} on {self.dataset_type.name} ",
-            f"{'='*50}",
-            f" Arsitektur  : {self.attn_type.name} | {self.pos_type.name} | {self.norm_type.name}",
-            f" Flash Attn  : {'ACTIVE' if self.flash else 'INACTIVE'}",
-            f" Params      : L={m.n_layer}, H={m.n_head}, E={m.n_embd}, B={m.block_size}",
-            f" Training    : LR={t.learning_rate}, Batch={t.batch_size}, Accum={t.gradient_accumulation_steps}",
-            f" Precision   : {t.dtype}",
-            f" Output Dir  : {self.out_dir}",
-            f"{'='*50}"
-        ]
-        return "\n".join(info_str)
 
 import argparse
 parser = argparse.ArgumentParser()
