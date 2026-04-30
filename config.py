@@ -112,25 +112,6 @@ class TrainConfig(BaseConfig):
 
 #########################################################################################
 
-class DatasetType(Enum):
-    THE_STACK = DatasetConfig(name="the-stack", url=None, dir_path="D:/Datasets/LLM/the-stack-2m-row")
-    FINEWEB_EDU = DatasetConfig(name="fineweb-edu", url=None, dir_path="D:/Datasets/LLM/fineweb-edu-2m-row")
-    OPENWEBTEXT = DatasetConfig(name="openwebtext", url=None, dir_path="D:/Datasets/LLM/openwebtext")
-    SHAKESPEARE = DatasetConfig(name="shakespeare", url='https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt', dir_path=None)
-
-class ModelType(Enum):
-    RESEARCH = ModelConfig(name="model_research", block_size=512, vocab_size=50257, n_layer=2, n_head=24, n_embd=1536, dropout=0.0, bias=False)
-    
-    SMALL = ModelConfig(name="model_small", block_size=1024, vocab_size=50257, n_layer=12, n_head=12, n_embd=768, dropout=0.0, bias=False)
-    MEDIUM = ModelConfig(name="model_medium", block_size=1024, vocab_size=50257, n_layer=24, n_head=16, n_embd=1024, dropout=0.0, bias=False)
-    LARGE = ModelConfig(name="model_large", block_size=1024, vocab_size=50257, n_layer=36, n_head=20, n_embd=1280, dropout=0.0, bias=False)
-    XL = ModelConfig(name="model_xl", block_size=1024, vocab_size=50257, n_layer=48, n_head=25, n_embd=1600, dropout=0.0, bias=False)
-    
-    GPT2 = ModelConfig(name="gpt2", block_size=1024, vocab_size=50257, n_layer=12, n_head=12, n_embd=768,  dropout=0.0, bias=True)  # 124M
-    GPT2_MEDIUM = ModelConfig(name="gpt2-medium", block_size=1024, vocab_size=50257, n_layer=24, n_head=16, n_embd=1024, dropout=0.0, bias=True)  # 350M
-    GPT2_LARGE = ModelConfig(name="gpt2-large", block_size=1024, vocab_size=50257, n_layer=36, n_head=20, n_embd=1280, dropout=0.0, bias=True)  # 774M
-    GPT2_XL = ModelConfig(name="gpt2-xl", block_size=1024, vocab_size=50257, n_layer=48, n_head=25, n_embd=1600, dropout=0.0, bias=True)  # 1558M
-
 class AttnType(Enum):
     MHA = AttnConfig(name="attn_mha", mlp_ratio=4)
     
@@ -149,6 +130,25 @@ class PosType(Enum):
 class NormType(Enum):
     RMS = NormConfig(name="norm_rms")
     LAYER = NormConfig(name="norm_layer")
+
+class DatasetType(Enum):
+    THE_STACK = DatasetConfig(name="the-stack", url=None, dir_path="D:/Datasets/LLM/the-stack-2m-row")
+    FINEWEB_EDU = DatasetConfig(name="fineweb-edu", url=None, dir_path="D:/Datasets/LLM/fineweb-edu-2m-row")
+    OPENWEBTEXT = DatasetConfig(name="openwebtext", url=None, dir_path="D:/Datasets/LLM/openwebtext")
+    SHAKESPEARE = DatasetConfig(name="shakespeare", url='https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt', dir_path=None)
+
+class ModelType(Enum):
+    RESEARCH = ModelConfig(name="model_research", block_size=512, vocab_size=50257, n_layer=2, n_head=24, n_embd=1536, dropout=0.0, bias=False)
+    
+    SMALL = ModelConfig(name="model_small", block_size=1024, vocab_size=50257, n_layer=12, n_head=12, n_embd=768, dropout=0.0, bias=False)
+    MEDIUM = ModelConfig(name="model_medium", block_size=1024, vocab_size=50257, n_layer=24, n_head=16, n_embd=1024, dropout=0.0, bias=False)
+    LARGE = ModelConfig(name="model_large", block_size=1024, vocab_size=50257, n_layer=36, n_head=20, n_embd=1280, dropout=0.0, bias=False)
+    XL = ModelConfig(name="model_xl", block_size=1024, vocab_size=50257, n_layer=48, n_head=25, n_embd=1600, dropout=0.0, bias=False)
+    
+    GPT2 = ModelConfig(name="gpt2", block_size=1024, vocab_size=50257, n_layer=12, n_head=12, n_embd=768,  dropout=0.0, bias=True)  # 124M
+    GPT2_MEDIUM = ModelConfig(name="gpt2-medium", block_size=1024, vocab_size=50257, n_layer=24, n_head=16, n_embd=1024, dropout=0.0, bias=True)  # 350M
+    GPT2_LARGE = ModelConfig(name="gpt2-large", block_size=1024, vocab_size=50257, n_layer=36, n_head=20, n_embd=1280, dropout=0.0, bias=True)  # 774M
+    GPT2_XL = ModelConfig(name="gpt2-xl", block_size=1024, vocab_size=50257, n_layer=48, n_head=25, n_embd=1600, dropout=0.0, bias=True)  # 1558M
 
 class TrainType(Enum):
     RESEARCH = TrainConfig(
