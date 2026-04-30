@@ -132,6 +132,7 @@ class NormType(Enum):
     LAYER = NormConfig(name="norm_layer")
 
 class DatasetType(Enum):
+    TINY_STORIES = DatasetConfig(name="TinyStories", url=None, dir_path="D:/Datasets/LLM/TinyStories_2m_row")
     THE_STACK = DatasetConfig(name="the-stack", url=None, dir_path="D:/Datasets/LLM/the-stack-2m-row")
     FINEWEB_EDU = DatasetConfig(name="fineweb-edu", url=None, dir_path="D:/Datasets/LLM/fineweb-edu-2m-row")
     OPENWEBTEXT = DatasetConfig(name="openwebtext", url=None, dir_path="D:/Datasets/LLM/openwebtext")
