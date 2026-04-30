@@ -52,7 +52,6 @@ def plot_attention_comparison(mqa_log, mha_log, save_path):
     plt.show()
 
 train_type = TrainType.RESEARCH
-dataset_type = DatasetType.OPENWEBTEXT
 model_type = ModelType.RESEARCH
 pos_type = PosType.ROPE
 norm_type = NormType.RMS
@@ -60,9 +59,9 @@ norm_type = NormType.RMS
 mqa_conf = Configs(
     flash=True,
     train_type=train_type,
-    dataset_type=dataset_type,
+    dataset_type=DatasetType.FINEWEB_EDU,
     model_type=model_type,
-    attn_type=AttnType.MQA,
+    attn_type=AttnType.MQA_ISO,
     pos_type=pos_type,
     norm_type=norm_type
 )
@@ -70,7 +69,7 @@ mqa_conf = Configs(
 mha_conf = Configs(
     flash=True,
     train_type=train_type,
-    dataset_type=dataset_type,
+    dataset_type=DatasetType.OPENWEBTEXT,
     model_type=model_type,
     attn_type=AttnType.MHA,
     pos_type=pos_type,
