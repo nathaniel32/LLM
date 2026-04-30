@@ -190,6 +190,26 @@ class TrainType(Enum):
         beta1=0.9,
         beta2=0.95
     )
+    FAST_RESEARCH = TrainConfig(
+        name="train_fast_research",
+        batch_size=4,
+        gradient_accumulation_steps=4,
+        max_iters=3000,
+        eval_interval=100,
+        eval_iters=50,
+        learning_rate=3e-4,
+        patience=None,
+        dtype='float16',
+        grad_clip=1.0,
+        warmup_iters=200,
+        lr_decay_iters=3000,
+        weight_decay=0.05,
+        min_lr=1e-5,
+        log_interval=10,
+        decay_lr=True,
+        beta1=0.9,
+        beta2=0.95
+    )
 
 #########################################################################################
 
