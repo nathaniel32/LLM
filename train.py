@@ -64,7 +64,7 @@ class Train:
             x, y = x.to(self.device), y.to(self.device)
         return x, y
     
-    def get_model(self, resume=False, filename='best_checkpoint.pt'):
+    def get_model(self, resume=False, filename='last_checkpoint.pt'):
         ckpt_path = os.path.join(self.configs.out_dir, filename)
         if not os.path.exists(ckpt_path):
             print("Checkpoint not found!")
