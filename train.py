@@ -9,6 +9,7 @@ from config import Configs, args, args_configs
 from logger import Logger
 from dataclasses import asdict
 from dataclasses import dataclass
+import random
 
 @dataclass
 class TrainState:
@@ -36,10 +37,7 @@ class Train:
         
         self.configs.dataset_type.value.prepare_dataset()
 
-    def set_seed(self, seed=1337):
-        import random
-        import numpy as np
-        
+    def set_seed(self, seed=1337):        
         random.seed(seed)
         np.random.seed(seed)
         torch.manual_seed(seed)
@@ -99,6 +97,13 @@ class Train:
             model.load_state_dict(state_dict)
             optimizer.load_state_dict(checkpoint['optimizer'])
             scaler.load_state_dict(checkpoint['scaler'])
+            
+            torch.set_rng_state(checkpoint['rng_state_torch'].cpu())
+            np.random.set_state(checkpoint['rng_state_numpy'])
+            random.setstate(checkpoint['rng_state_python'])
+            if checkpoint['rng_state_cuda'] is not None and self.device == 'cuda' and torch.cuda.is_available():
+                rng_states = [s.cpu() for s in checkpoint['rng_state_cuda']]
+                torch.cuda.set_rng_state_all(rng_states)
         
         self.logger.set_meta({"param": model.get_num_params(), **self.configs.to_dict()})
 
@@ -140,7 +145,11 @@ class Train:
             'optimizer': optimizer.state_dict(),
             'scaler': scaler.state_dict(),
             'args': asdict(self.configs),
-            'state': asdict(self.train_state)
+            'state': asdict(self.train_state),
+            'rng_state_torch': torch.get_rng_state(),
+            'rng_state_numpy': np.random.get_state(),
+            'rng_state_python': random.getstate(),
+            'rng_state_cuda': torch.cuda.get_rng_state_all() if torch.cuda.is_available() else None,
         }
 
         os.makedirs(self.configs.out_dir, exist_ok=True)
