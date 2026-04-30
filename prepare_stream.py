@@ -5,7 +5,8 @@ import tiktoken
 from datasets import load_dataset
 
 def prepare_data(max_samples, val_ratio, hs_path, hs_name, out_root_dir):
-    out_dir = os.path.join(out_root_dir, hs_path)
+    data_name = input("Dataname: ")
+    out_dir = os.path.join(out_root_dir, data_name)
     os.makedirs(out_dir, exist_ok=True)
 
     enc = tiktoken.get_encoding("gpt2")
