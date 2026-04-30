@@ -51,9 +51,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--max_samples", type=int) #8013769
     parser.add_argument("--val_ratio", type=float, default=0.01)
-    parser.add_argument("--check_data", action="store_true")
     parser.add_argument("--data_name", type=str, default='openwebtext')
-    parser.add_argument("--root_dir", type=str, default='datasets')
+    parser.add_argument("--root_dir", type=str, default='datasets') # root_out_dir
+    parser.add_argument("--check_data", action="store_true")
+
     args = parser.parse_args()
 
     if not args.check_data:
