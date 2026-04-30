@@ -55,7 +55,7 @@ class Logger:
 
 if __name__ == "__main__":
     logger = Logger("out/test")
-    logger.set_meta({"param":300, "model":"gpt2-small"})
+    logger.set_meta({"params":300, "model":"gpt2-small"})
     logger.log("log", {"loss":3.4, "val-loss":3.2, "iter": 1}, "iter")
     logger.log("log", {"loss":1.2, "val-loss":1.2, "iter": 2}, "iter")
     logger.log("log", {"loss":1, "val-loss":1, "iter": 1}, "iter")

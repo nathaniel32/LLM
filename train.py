@@ -105,7 +105,7 @@ class Train:
                 rng_states = [s.cpu() for s in checkpoint['rng_state_cuda']]
                 torch.cuda.set_rng_state_all(rng_states)
         
-        self.logger.set_meta({"param": model.get_num_params(), **self.configs.to_dict()})
+        self.logger.set_meta({"params": model.get_num_params(), **self.configs.to_dict()})
         
         print(self.configs.info())
         print(f"Total Params: {model.get_num_params()/1e6:.2f}M")
