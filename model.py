@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 from abc import ABC, abstractmethod
-from config import Configs, AttnType, PosType, NormType
+from config import Configs, PosType, NormType
 
 class BaseKVCache(ABC):
     def __init__(self, block_size):
@@ -385,7 +385,7 @@ class Block(nn.Module):
             self.ln_1 = LayerNorm(configs.model_type.value.n_embd, bias=configs.model_type.value.bias)
             self.ln_2 = LayerNorm(configs.model_type.value.n_embd, bias=configs.model_type.value.bias)
         
-        if configs.attn_type in (AttnType.MLA_STD, AttnType.MLA_ISO):
+        if configs.attn_type.value.is_mla:
             self.attn = MultiHeadLatentAttention(configs)
         else:
             if configs.attn_type.value.kv_head is not None: # MQA, GQA

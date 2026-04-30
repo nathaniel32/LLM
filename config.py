@@ -81,6 +81,7 @@ class ModelConfig(BaseConfig):
 class AttnConfig(BaseConfig):
     mlp_ratio: int
     kv_head: Optional[int] = None
+    is_mla:bool = False
 
 @dataclass
 class PosConfig(BaseConfig):
@@ -117,11 +118,11 @@ class AttnType(Enum):
     
     GQA_ISO = AttnConfig(name="attn_gqa_iso", mlp_ratio=4.75, kv_head=2)
     MQA_ISO = AttnConfig(name="attn_mqa_iso", mlp_ratio=4.875, kv_head=1)
-    MLA_ISO = AttnConfig(name="attn_mla_iso", mlp_ratio=5.125)
+    MLA_ISO = AttnConfig(name="attn_mla_iso", mlp_ratio=5.125, is_mla=True)
     
     GQA_STD = AttnConfig(name="attn_gqa_std", mlp_ratio=4, kv_head=2)
     MQA_STD = AttnConfig(name="attn_mqa_std", mlp_ratio=4, kv_head=1)
-    MLA_STD = AttnConfig(name="attn_mla_std", mlp_ratio=4)
+    MLA_STD = AttnConfig(name="attn_mla_std", mlp_ratio=4, is_mla=True)
 
 class PosType(Enum):
     WPE = PosConfig(name="pos_wpe")
