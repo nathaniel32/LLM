@@ -119,7 +119,6 @@ class DatasetType(Enum):
     SHAKESPEARE = DatasetConfig(name="shakespeare", url='https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt', dir_path=None)
 
 class ModelType(Enum):
-    RESEARCH_DEMO = ModelConfig(name="model_research_demo", block_size=512, vocab_size=50257, n_layer=8, n_head=8, n_embd=640, dropout=0.0, bias=False)
     RESEARCH = ModelConfig(name="model_research", block_size=512, vocab_size=50257, n_layer=6, n_head=8, n_embd=512, dropout=0.0, bias=False)
     
     SMALL = ModelConfig(name="model_small", block_size=1024, vocab_size=50257, n_layer=12, n_head=12, n_embd=768, dropout=0.0, bias=False)
@@ -173,26 +172,6 @@ class TrainType(Enum):
         beta2=0.95
     )
     RESEARCH = TrainConfig(
-        name="train_research",
-        batch_size=6,
-        gradient_accumulation_steps=8,       # Effective batch size = 48
-        max_iters=15_000,                    # 48*15000*512 = ~368M Token
-        eval_interval=250,
-        eval_iters=100,
-        learning_rate=5e-4,
-        patience=None,
-        dtype='float32',
-        grad_clip=1.0,
-        warmup_iters=1000,
-        lr_decay_iters=15_000,
-        weight_decay=1e-1,
-        min_lr=5e-5,
-        log_interval=10,
-        decay_lr=True,
-        beta1=0.9,
-        beta2=0.95
-    )
-    FAST_RESEARCH = TrainConfig(
         name="train_fast_research",
         batch_size=4,
         gradient_accumulation_steps=4,
