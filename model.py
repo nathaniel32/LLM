@@ -393,7 +393,7 @@ class Block(nn.Module):
             else: # MHA
                 n_kv_head = configs.model_type.value.n_head
             
-            print("KV_HEAD:", n_kv_head)
+            #print("KV_HEAD:", n_kv_head)
             self.attn = CausalSelfAttention(configs, n_kv_head=n_kv_head)
 
         self.mlp = MLP(configs)
@@ -410,7 +410,7 @@ class Transformer(nn.Module):
         super().__init__()
         self.configs = configs
         self.is_wpe = True if configs.pos_type == PosType.WPE else False
-        print({'is_wpe': self.is_wpe, 'pos_type': configs.pos_type.value})
+        #print({'is_wpe': self.is_wpe, 'pos_type': configs.pos_type.value})
 
         self.transformer = nn.ModuleDict(dict(
             wte = nn.Embedding(configs.model_type.value.vocab_size, configs.model_type.value.n_embd), # Weight Token Embedding -> torch.Size([50257, 768])
@@ -430,7 +430,7 @@ class Transformer(nn.Module):
                 torch.nn.init.normal_(p, mean=0.0, std=0.02/math.sqrt(2 * configs.model_type.value.n_layer))
 
         # report number of parameters
-        print("number of parameters: %.2fM" % (self.get_num_params()/1e6,))
+        #print("number of parameters: %.2fM" % (self.get_num_params()/1e6,))
 
     def get_num_params(self, non_embedding=True):
         """

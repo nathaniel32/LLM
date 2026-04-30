@@ -1,18 +1,11 @@
-from config import Configs, ModelType, AttnType, PosType, NormType, TrainType
+from config import AttnType, args_configs
 from model import Transformer
 
+configs = args_configs
+
 def check_config(attn_type):
-    configs = Configs(
-        flash=True,
-        model_type=ModelType.RESEARCH,
-        attn_type=attn_type,
-        pos_type=PosType.ROPE,
-        norm_type=NormType.RMS,
-        train_type=TrainType.RESEARCH,
-        dataset_type=None
-    )
+    configs.attn_type = attn_type
     model = Transformer(configs)
-    params = model.get_num_params()
     
     m = configs.model_type.value
     a = configs.attn_type.value
@@ -33,11 +26,12 @@ def check_config(attn_type):
         
     total_kv_size = kv_size_per_layer * m.n_layer
     
-    print(f"AttnType: {attn_type.name}")
+    params = model.get_num_params()
+    print(configs.info())
     print(f"Total Params: {params/1e6:.2f}M")
     print(f"KV Cache Size per token (elements): {total_kv_size}")
     print(f"KV Cache Size for {m.block_size} tokens (MB, float16): {total_kv_size * m.block_size * 2 / 1024**2:.4f} MB")
-    print("-" * 30)
+    print("=" * 100)
 
 for at in AttnType:
     check_config(at)

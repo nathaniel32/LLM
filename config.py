@@ -119,7 +119,9 @@ class DatasetType(Enum):
     SHAKESPEARE = DatasetConfig(name="shakespeare", url='https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt', dir_path=None)
 
 class ModelType(Enum):
+    RESEARCH_DEMO = ModelConfig(name="model_research_demo", block_size=512, vocab_size=50257, n_layer=8, n_head=8, n_embd=640, dropout=0.0, bias=False)
     RESEARCH = ModelConfig(name="model_research", block_size=512, vocab_size=50257, n_layer=6, n_head=8, n_embd=512, dropout=0.0, bias=False)
+    
     SMALL = ModelConfig(name="model_small", block_size=1024, vocab_size=50257, n_layer=12, n_head=12, n_embd=768, dropout=0.0, bias=False)
     MEDIUM = ModelConfig(name="model_medium", block_size=1024, vocab_size=50257, n_layer=24, n_head=16, n_embd=1024, dropout=0.0, bias=False)
     LARGE = ModelConfig(name="model_large", block_size=1024, vocab_size=50257, n_layer=36, n_head=20, n_embd=1280, dropout=0.0, bias=False)
@@ -266,7 +268,7 @@ parser = argparse.ArgumentParser()
 
 parser.add_argument("--no_flash", action="store_false", dest="flash")
 parser.add_argument("--train_type", type=str, default="RESEARCH")
-parser.add_argument("--dataset_type", type=str, default="OPENWEBTEXT")
+parser.add_argument("--dataset_type", type=str, default="FINEWEB_EDU")
 parser.add_argument("--model_type", type=str, default="RESEARCH")
 parser.add_argument("--attn_type", type=str, default="MHA")
 parser.add_argument("--pos_type", type=str, default="ROPE")
