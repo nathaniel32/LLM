@@ -4,6 +4,8 @@ from enum import Enum
 from abc import ABC
 import os
 
+project_root_global = os.path.dirname(os.path.abspath(__file__))
+
 @dataclass
 class BaseConfig(ABC):
     name: str
@@ -15,8 +17,7 @@ class DatasetConfig(BaseConfig):
     dir_path: Optional[str]
 
     def __post_init__(self):
-        project_root = os.path.dirname(os.path.abspath(__file__))
-        self.root_dir = os.path.join(project_root, 'datasets', self.name)
+        self.root_dir = os.path.join(project_root_global, 'datasets', self.name)
 
     def prepare_dataset(self):
         import requests
@@ -191,6 +192,8 @@ class Configs:
     norm_type: NormType
     train_type: Optional[TrainType] = None
     dataset_type: Optional[DatasetType] = None
+
+    out_root: str = os.path.join(project_root_global, "out")
     
     @property
     def out_dir(self) -> str:
@@ -199,7 +202,7 @@ class Configs:
         
         import os
         flash_str = "flash" if self.flash else "no_flash"
-        return os.path.join('out', self.dataset_type.value.name, self.model_type.value.name, self.norm_type.value.name, self.train_type.value.name, self.pos_type.value.name, self.attn_type.value.name, flash_str)
+        return os.path.join(self.out_root, self.dataset_type.value.name, self.model_type.value.name, self.norm_type.value.name, self.train_type.value.name, self.pos_type.value.name, self.attn_type.value.name, flash_str)
     
     def info(self):
         m = self.model_type.value
