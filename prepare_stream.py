@@ -4,7 +4,7 @@ import numpy as np
 import tiktoken
 from datasets import load_dataset
 
-def prepare_data(max_samples, val_ratio, hs_path, hs_name, out_root_dir):
+def prepare_data(max_samples, val_ratio, hs_path, hs_name, out_root_dir, col):
     data_name = input("Dataname: ")
     out_dir = os.path.join(out_root_dir, data_name)
     os.makedirs(out_dir, exist_ok=True)
@@ -27,7 +27,7 @@ def prepare_data(max_samples, val_ratio, hs_path, hs_name, out_root_dir):
             if i >= max_samples:
                 break
 
-            ids = enc.encode_ordinary(example["text"])
+            ids = enc.encode_ordinary(example[col])
             ids.append(enc.eot_token)
             arr = np.array(ids, dtype=np.uint16)
 
@@ -58,11 +58,12 @@ if __name__ == "__main__":
     parser.add_argument("--hs_name", type=str)
     parser.add_argument("--out_root_dir", type=str, default='datasets')
     parser.add_argument("--check_path", type=str)
+    parser.add_argument("--col", type=str, default='text')
 
     args = parser.parse_args()
 
     if args.check_path is None:
-        prepare_data(max_samples=args.max_samples, val_ratio=args.val_ratio, hs_path=args.hs_path, hs_name=args.hs_name, out_root_dir=args.out_root_dir)
+        prepare_data(max_samples=args.max_samples, val_ratio=args.val_ratio, hs_path=args.hs_path, hs_name=args.hs_name, out_root_dir=args.out_root_dir, col=args.col)
     else:
         total_tokens, decoded_text = read_bin_file(args.check_path, args.max_samples)
         print(f"- Text: \n{decoded_text}")
@@ -70,3 +71,4 @@ if __name__ == "__main__":
 
 # py prepare_stream.py --max_samples 10000 --hs_path "HuggingFaceFW/fineweb-edu" --out_root_dir D:\Datasets\LLM
 # py prepare_stream.py --max_samples 10000 --hs_path "allenai/c4" --hs_name id
+# py prepare_stream.py --max_samples 10000 --hs_path "bigcode/the-stack" --out_root_dir D:\Datasets\LLM --col content
