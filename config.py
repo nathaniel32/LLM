@@ -116,9 +116,6 @@ class DatasetType(Enum):
     FINEWEB_EDU = DatasetConfig(name="HuggingFaceFW/fineweb-edu", url=None, dir_path=None)
     OPENWEBTEXT = DatasetConfig(name="openwebtext", url=None, dir_path="D:/Datasets/LLM/openwebtext")
     SHAKESPEARE = DatasetConfig(name="shakespeare", url='https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt', dir_path=None)
-    SIMPLE_TEXT = DatasetConfig(name="simple_text", url='https://raw.githubusercontent.com/uwgraphics/VEP2_TCP_SimpleText/refs/heads/main/N3/N37535.txt', dir_path=None)
-    WIKI_INDO = DatasetConfig(name="wiki_indo", url='https://id.wikipedia.org/w/index.php?title=Indonesia&action=raw', dir_path=None)
-    WIKI_INDO_JSON = DatasetConfig(name="wiki_indo_json", url='https://id.wikipedia.org/w/api.php?action=query&format=json&prop=extracts&titles=Indonesia&explaintext=1', dir_path=None)
 
 class ModelType(Enum):
     RESEARCH = ModelConfig(name="model_research", block_size=512, vocab_size=50257, n_layer=6, n_head=8, n_embd=512, dropout=0.0, bias=False)
