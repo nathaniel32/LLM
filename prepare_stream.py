@@ -62,5 +62,5 @@ if __name__ == "__main__":
         prepare_data(max_samples=args.max_samples, val_ratio=args.val_ratio, data_name=args.data_name, out_root_dir=args.out_root_dir)
     else:
         total_tokens, decoded_text = read_bin_file(args.check_path, args.max_samples)
-        print(f"- Text: \n{total_tokens}")
-        print(f"- Total: {decoded_text}")
+        print(f"- Text: \n{decoded_text}")
+        print(f"- Total: {total_tokens}")
