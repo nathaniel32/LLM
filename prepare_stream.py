@@ -72,3 +72,4 @@ if __name__ == "__main__":
 # py prepare_stream.py --max_samples 10000 --hs_path "HuggingFaceFW/fineweb-edu" --out_root_dir D:\Datasets\LLM
 # py prepare_stream.py --max_samples 10000 --hs_path "allenai/c4" --hs_name id
 # py prepare_stream.py --max_samples 10000 --hs_path "bigcode/the-stack" --out_root_dir D:\Datasets\LLM --col content
+# py prepare_stream.py --max_samples 1000 --check_path D:\Datasets\LLM\the-stack-2m-row\val.bin
