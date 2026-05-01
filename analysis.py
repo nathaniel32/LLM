@@ -19,6 +19,7 @@ def load_data(config:Configs):
     return data
 
 def plot_attention_comparison(configs_list, save_dir, metric_types=['loss', 'perplexity', 'accuracy']):
+    
     for metric_type in metric_types:
         plt.figure(figsize=(12, 7))
         cmap = plt.get_cmap('tab10')
