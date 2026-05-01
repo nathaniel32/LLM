@@ -1,7 +1,7 @@
 import os
 import json
 import matplotlib.pyplot as plt
-from config import Configs, AttnType, ModelType, train_type, pos_type, norm_type, dataset_type
+from config import Configs, AttnType, train_type, pos_type, norm_type, dataset_type, model_type
 
 def load_data(config:Configs):
     data = {}
@@ -64,8 +64,7 @@ configs_list = [
         attn_type=attn_type,
         pos_type=pos_type,
         norm_type=norm_type
-    ) 
-    for model_type in [ModelType.RESEARCH_3]
+    )
     for attn_type in AttnType
 ]
 
