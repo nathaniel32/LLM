@@ -56,44 +56,17 @@ def plot_attention_comparison(configs_list, save_path):
     plt.savefig(save_path, dpi=300, bbox_inches='tight')
     plt.show()
 
-mha_conf = Configs(
-    flash=True,
-    train_type=train_type,
-    dataset_type=dataset_type,
-    model_type=model_type,
-    attn_type=AttnType.MHA,
-    pos_type=pos_type,
-    norm_type=norm_type
-)
+configs_list = [
+    Configs(
+        flash=True,
+        train_type=train_type,
+        dataset_type=dataset_type,
+        model_type=model_type,
+        attn_type=attn_type,
+        pos_type=pos_type,
+        norm_type=norm_type
+    )
+    for attn_type in AttnType
+]
 
-gqa_conf = Configs(
-    flash=True,
-    train_type=train_type,
-    dataset_type=dataset_type,
-    model_type=model_type,
-    attn_type=AttnType.GQA_ISO,
-    pos_type=pos_type,
-    norm_type=norm_type
-)
-
-mqa_conf = Configs(
-    flash=True,
-    train_type=train_type,
-    dataset_type=dataset_type,
-    model_type=model_type,
-    attn_type=AttnType.MQA_ISO,
-    pos_type=pos_type,
-    norm_type=norm_type
-)
-
-mla_conf = Configs(
-    flash=True,
-    train_type=train_type,
-    dataset_type=dataset_type,
-    model_type=model_type,
-    attn_type=AttnType.MLA_ISO,
-    pos_type=pos_type,
-    norm_type=norm_type
-)
-
-plot_attention_comparison([mha_conf, gqa_conf, mqa_conf, mla_conf], save_path="out/mqa_vs_mha_loss.png")
+plot_attention_comparison(configs_list, save_path="out/mqa_vs_mha_loss.png")
