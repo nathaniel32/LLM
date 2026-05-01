@@ -144,6 +144,7 @@ class ModelType(Enum):
     RESEARCH = ModelConfig(name="model_research", block_size=512, vocab_size=50257, n_layer=4, n_head=64, n_embd=512, dropout=0.0, bias=False)
     RESEARCH_1 = ModelConfig(name="model_research_1", block_size=512, vocab_size=50257, n_layer=2, n_head=128, n_embd=512, dropout=0.0, bias=False)
     RESEARCH_2 = ModelConfig(name="model_research_2", block_size=1024, vocab_size=50257, n_layer=2, n_head=64, n_embd=512, dropout=0.0, bias=False)
+    RESEARCH_3 = ModelConfig(name="model_research_3", block_size=512, vocab_size=50257, n_layer=2, n_head=64, n_embd=1024, dropout=0.0, bias=False)
     
     SMALL = ModelConfig(name="model_small", block_size=1024, vocab_size=50257, n_layer=12, n_head=12, n_embd=768, dropout=0.0, bias=False)
     MEDIUM = ModelConfig(name="model_medium", block_size=1024, vocab_size=50257, n_layer=24, n_head=16, n_embd=1024, dropout=0.0, bias=False)
