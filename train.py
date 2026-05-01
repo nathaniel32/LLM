@@ -133,7 +133,7 @@ class Train:
         model.eval()
         
         for split in ['train', 'val']:
-            # Menyiapkan tensor untuk menyimpan metrik per iterasi
+            # tensor untuk menyimpan metrik per iterasi
             losses = torch.zeros(self.configs.train_type.value.eval_iters)
             accuracies = torch.zeros(self.configs.train_type.value.eval_iters)
             
@@ -146,7 +146,7 @@ class Train:
                 # Menyimpan nilai loss
                 losses[k] = loss.item()
                 
-                # Mengambil prediksi dengan probabilitas tertinggi (argmax)
+                # probabilitas tertinggi
                 predictions = torch.argmax(logits, dim=-1)
                 
                 # Menghitung akurasi batch
@@ -154,11 +154,10 @@ class Train:
                 total = Y.numel() 
                 accuracies[k] = correct / total
 
-            # Menghitung rata-rata metrik untuk split (train/val)
+            # rata-rata
             mean_loss = losses.mean().item()
             mean_acc = accuracies.mean().item()
             
-            # Menyimpan semua metrik
             out[split] = {
                 'loss': mean_loss,
                 'perplexity': torch.exp(torch.tensor(mean_loss)).item(),
@@ -222,8 +221,7 @@ class Train:
                     "iter": self.train_state.iter_num,
                     "patience": self.train_state.patience_counter,
                     'best_val_loss': float(self.train_state.best_val_loss) if self.train_state.best_val_loss != float('inf') else None,
-                    "train_loss": float(metrics['train']['loss']),
-                    "val_loss": float(metrics['val']['loss']),
+                    "metrics": metrics,
                     "lr": lr
                 })
 
