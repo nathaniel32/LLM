@@ -69,7 +69,7 @@ configs_list = [
         pos_type=pos_type,
         norm_type=norm_type
     ) 
-    for model_type in ModelType 
+    for model_type in [ModelType.RESEARCH_2]
     for attn_type in AttnType
 ]
 
