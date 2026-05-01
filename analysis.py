@@ -32,7 +32,7 @@ def plot_attention_comparison(configs_list, save_path):
         
         val_data = log_data.get('val_log')
             
-        label_name = f"{conf.attn_type.name} - {log_data['params']}"
+        label_name = f"{conf.attn_type.name} | {conf.model_type.name} | {log_data['params']/1e6:.2f}M"
         col_iters = [d['iter'] for d in val_data]
         col_val_loss = [d['val_loss'] for d in val_data]
         
