@@ -45,7 +45,7 @@ def plot_attention_comparison(configs_list, save_dir, metric_types=['loss', 'per
         plt.yscale('log')
         plt.title(f'Attention Variants Performance Comparison - {metric_type}', fontsize=14, pad=15)
         plt.xlabel('Iterations', fontsize=12)
-        plt.ylabel('Loss (Log Scale)', fontsize=12)
+        plt.ylabel(f'{metric_type} (Log Scale)', fontsize=12)
         plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0.)
         plt.grid(True, which="both", ls="-", alpha=0.15)
         plt.tight_layout()
