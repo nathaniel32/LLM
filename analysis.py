@@ -3,7 +3,7 @@ import json
 import matplotlib.pyplot as plt
 from config import Configs, AttnType, ModelType, train_type, pos_type, norm_type, dataset_type
 
-def load_metrics(config:Configs):
+def load_data(config:Configs):
     data = {}
 
     if config.out_dir is not None:
@@ -18,46 +18,42 @@ def load_metrics(config:Configs):
     
     return data
 
-def plot_attention_comparison(configs_list, save_path):
-    plt.figure(figsize=(12, 7))
-    cmap = plt.get_cmap('tab10')
+def plot_attention_comparison(configs_list, save_dir, metric_types=['loss', 'perplexity', 'accuracy']):
+    for metric_type in metric_types:
+        plt.figure(figsize=(12, 7))
+        cmap = plt.get_cmap('tab10')
 
-    for i, conf in enumerate(configs_list):
-        conf:Configs
+        for i, conf in enumerate(configs_list):
+            conf:Configs
 
-        log_data = load_metrics(conf)
+            log_data = load_data(conf)
 
-        if not log_data:
-            continue
-        
-        val_data = log_data.get('val_log')
+            if not log_data:
+                continue
             
-        label_name = f"{conf.attn_type.name} | {conf.model_type.name} | {log_data['params']/1e6:.2f}M"
-        col_iters = [d['iter'] for d in val_data]
-        col_val_loss = [d['val_loss'] for d in val_data]
-        
-        plt.plot(col_iters, col_val_loss, '-', 
-                 label=label_name, 
-                 linewidth=2.5, 
-                 color=cmap(i))
-        
-        if 'train_loss' in val_data[0]:
-            col_train_loss = [d['train_loss'] for d in val_data]
-            plt.plot(col_iters, col_train_loss, '--', 
-                     alpha=0.3, 
-                     color=cmap(i))
+            val_data = log_data.get('val_log')
+                
+            label_name = f"{conf.attn_type.name} | {conf.model_type.name} | {log_data['params']/1e6:.2f}M"
+            col_iters = [d['iter'] for d in val_data]
+            
+            col_val_loss = [d['metrics']['val'][metric_type] for d in val_data]
+            plt.plot(col_iters, col_val_loss, '-', label=label_name, linewidth=2.5, color=cmap(i))
+            
+            col_train_loss = [d['metrics']['train'][metric_type] for d in val_data]
+            plt.plot(col_iters, col_train_loss, '--', alpha=0.3, color=cmap(i))
 
-    plt.yscale('log')
-    plt.title('Attention Variants Performance Comparison', fontsize=14, pad=15)
-    plt.xlabel('Iterations', fontsize=12)
-    plt.ylabel('Loss (Log Scale)', fontsize=12)
-    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0.)
-    plt.grid(True, which="both", ls="-", alpha=0.15)
-    plt.tight_layout()
+        plt.yscale('log')
+        plt.title(f'Attention Variants Performance Comparison - {metric_type}', fontsize=14, pad=15)
+        plt.xlabel('Iterations', fontsize=12)
+        plt.ylabel('Loss (Log Scale)', fontsize=12)
+        plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0.)
+        plt.grid(True, which="both", ls="-", alpha=0.15)
+        plt.tight_layout()
 
-    os.makedirs(os.path.dirname(save_path), exist_ok=True)
-    plt.savefig(save_path, dpi=300, bbox_inches='tight')
-    plt.show()
+        save_path = os.path.join(save_dir, f'{metric_type}.png')
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        plt.savefig(save_path, dpi=300, bbox_inches='tight')
+        plt.show()
 
 configs_list = [
     Configs(
@@ -69,8 +65,8 @@ configs_list = [
         pos_type=pos_type,
         norm_type=norm_type
     ) 
-    for model_type in [ModelType.RESEARCH]
+    for model_type in [ModelType.RESEARCH_3]
     for attn_type in AttnType
 ]
 
-plot_attention_comparison(configs_list, save_path="out/mqa_vs_mha_loss.png")
+plot_attention_comparison(configs_list, save_dir="out")
