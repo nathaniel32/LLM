@@ -325,7 +325,7 @@ class MultiHeadLatentAttention(BaseSelfAttention):
             w_v = wkv_b[:, self.qk_nope_head_dim:, :]   # (n_head, v_dim,   kv_lora_dim)
 
             # q_nope: (B, n_head, T, nope_dim) → projected ke latent space
-            q_latent = torch.einsum("bnsd,hdc->bnsc", q_nope, w_k)
+            q_latent = torch.einsum("bnsd,ndc->bnsc", q_nope, w_k)
             # (B, n_head, T, kv_lora_dim)
 
             softmax_scale = self.qk_head_dim ** -0.5
@@ -344,7 +344,7 @@ class MultiHeadLatentAttention(BaseSelfAttention):
             attn = self.attn_dropout(attn)
 
             out_latent = torch.einsum("bnst,btc->bnsc", attn,       kv_latent_normed)
-            y           = torch.einsum("bnsc,hdc->bnsd", out_latent, w_v)
+            y           = torch.einsum("bnsc,ndc->bnsd", out_latent, w_v)
             # y: (B, n_head, T, v_head_dim)
         
         # re-assemble all head outputs side by side
