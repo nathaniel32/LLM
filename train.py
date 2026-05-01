@@ -128,17 +128,43 @@ class Train:
     
     # helps estimate an arbitrarily accurate loss over either split using many batches
     @torch.no_grad()
-    def estimate_loss(self, model):
+    def estimate_metrics(self, model):
         out = {}
         model.eval()
+        
         for split in ['train', 'val']:
+            # Menyiapkan tensor untuk menyimpan metrik per iterasi
             losses = torch.zeros(self.configs.train_type.value.eval_iters)
+            accuracies = torch.zeros(self.configs.train_type.value.eval_iters)
+            
             for k in range(self.configs.train_type.value.eval_iters):
                 X, Y = self.get_batch(split)
+                
                 with self.ctx:
                     logits, loss = model(X, Y)
+                    
+                # Menyimpan nilai loss
                 losses[k] = loss.item()
-            out[split] = losses.mean()
+                
+                # Mengambil prediksi dengan probabilitas tertinggi (argmax)
+                predictions = torch.argmax(logits, dim=-1)
+                
+                # Menghitung akurasi batch
+                correct = (predictions == Y).sum().item()
+                total = Y.numel() 
+                accuracies[k] = correct / total
+
+            # Menghitung rata-rata metrik untuk split (train/val)
+            mean_loss = losses.mean().item()
+            mean_acc = accuracies.mean().item()
+            
+            # Menyimpan semua metrik
+            out[split] = {
+                'loss': mean_loss,
+                'perplexity': torch.exp(torch.tensor(mean_loss)).item(),
+                'accuracy': mean_acc
+            }
+            
         model.train()
         return out
     
@@ -181,12 +207,12 @@ class Train:
                 param_group['lr'] = lr
 
             if self.train_state.iter_num % self.configs.train_type.value.eval_interval == 0 or self.train_state.iter_num == self.configs.train_type.value.max_iters:
-                losses = self.estimate_loss(model)
+                metrics = self.estimate_metrics(model)
 
                 self.save_model(model, optimizer, scaler, filename='last_checkpoint.pt')
                 
-                if losses['val'] < self.train_state.best_val_loss:
-                    self.train_state.best_val_loss = losses['val']
+                if metrics['val']['loss'] < self.train_state.best_val_loss:
+                    self.train_state.best_val_loss = metrics['val']['loss']
                     self.train_state.patience_counter = 0
                     self.save_model(model, optimizer, scaler, filename='best_checkpoint.pt')
                 else:
@@ -196,8 +222,8 @@ class Train:
                     "iter": self.train_state.iter_num,
                     "patience": self.train_state.patience_counter,
                     'best_val_loss': float(self.train_state.best_val_loss) if self.train_state.best_val_loss != float('inf') else None,
-                    "train_loss": float(losses['train']),
-                    "val_loss": float(losses['val']),
+                    "train_loss": float(metrics['train']['loss']),
+                    "val_loss": float(metrics['val']['loss']),
                     "lr": lr
                 })
 
