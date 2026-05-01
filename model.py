@@ -236,7 +236,7 @@ class MultiHeadLatentAttention(BaseSelfAttention):
         super().__init__(configs)
         self.efficient = efficient
         
-        self.q_lora_dim = 0
+        self.q_lora_dim = int(self.model_config.n_embd * 0.3)
         self.v_head_dim = self.head_dim
         self.kv_lora_dim = configs.model_type.value.n_embd // 4
 

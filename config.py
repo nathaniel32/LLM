@@ -119,7 +119,7 @@ class AttnType(Enum):
     
     GQA_ISO = AttnConfig(name="attn_gqa_iso", mlp_ratio=4.97, kv_head=2)
     MQA_ISO = AttnConfig(name="attn_mqa_iso", mlp_ratio=4.985, kv_head=1)
-    MLA_ISO = AttnConfig(name="attn_mla_iso", mlp_ratio=4.374, is_mla=True)
+    MLA_ISO = AttnConfig(name="attn_mla_iso", mlp_ratio=4.749, is_mla=True)
     
     #GQA_STD = AttnConfig(name="attn_gqa_std", mlp_ratio=4, kv_head=2)
     #MQA_STD = AttnConfig(name="attn_mqa_std", mlp_ratio=4, kv_head=1)
