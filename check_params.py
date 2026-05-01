@@ -13,10 +13,10 @@ def check_config(attn_type):
     # Calculate KV Cache size per token (in elements)
     if configs.attn_type.value.is_mla:
         # In model.py:
+        # self.kv_lora_dim = configs.model_type.value.n_embd // 4
         # self.qk_rope_head_dim = self.head_dim // 2
-        # self.kv_lora_dim = self.head_dim * 2
         head_dim = m.n_embd // m.n_head
-        kv_lora_dim = head_dim * 2
+        kv_lora_dim = m.n_embd // 4
         qk_rope_head_dim = head_dim // 2
         kv_size_per_layer = kv_lora_dim + qk_rope_head_dim
     else:
