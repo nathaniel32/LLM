@@ -1,17 +1,20 @@
 import os
 import json
 import matplotlib.pyplot as plt
-from config import Configs, AttnType, train_type, model_type, pos_type, norm_type, dataset_type
+from config import Configs, AttnType, ModelType, train_type, pos_type, norm_type, dataset_type
 
-def load_metrics(config):
-    log_path = os.path.join(config.out_dir, 'metrics.json')
-    
-    if not os.path.exists(log_path):
-        print(f"Warning: File not found at {log_path}")
-        return []
+def load_metrics(config:Configs):
+    data = {}
+
+    if config.out_dir is not None:
+        log_path = os.path.join(config.out_dir, 'metrics.json')
         
-    with open(log_path, 'r', encoding='utf-8') as f:
-        data = json.load(f)
+        if not os.path.exists(log_path):
+            print(f"Warning: File not found at {log_path}")
+            return data
+            
+        with open(log_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
     
     return data
 
@@ -65,7 +68,8 @@ configs_list = [
         attn_type=attn_type,
         pos_type=pos_type,
         norm_type=norm_type
-    )
+    ) 
+    for model_type in ModelType 
     for attn_type in AttnType
 ]
 

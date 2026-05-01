@@ -142,6 +142,7 @@ class DatasetType(Enum):
 
 class ModelType(Enum):
     RESEARCH = ModelConfig(name="model_research", block_size=512, vocab_size=50257, n_layer=4, n_head=64, n_embd=512, dropout=0.0, bias=False)
+    RESEARCH_1 = ModelConfig(name="model_research_1", block_size=512, vocab_size=50257, n_layer=2, n_head=128, n_embd=512, dropout=0.0, bias=False)
     
     SMALL = ModelConfig(name="model_small", block_size=1024, vocab_size=50257, n_layer=12, n_head=12, n_embd=768, dropout=0.0, bias=False)
     MEDIUM = ModelConfig(name="model_medium", block_size=1024, vocab_size=50257, n_layer=24, n_head=16, n_embd=1024, dropout=0.0, bias=False)
@@ -198,7 +199,7 @@ class Configs:
     @property
     def out_dir(self) -> str:
         if self.train_type is None or self.dataset_type is None:
-            raise Exception("path not found!")
+            return None
         
         import os
         flash_str = "flash" if self.flash else "no_flash"
@@ -209,11 +210,6 @@ class Configs:
         t = self.train_type.value if self.train_type else None
         d = self.dataset_type.value if self.dataset_type else None
 
-        try:
-            out_dir = self.out_dir
-        except Exception as e:
-            out_dir = e
-
         info_str = [
             f"{'='*50}",
             f" CONFIGURATION: {self.model_type.name} on {self.dataset_type.name if self.dataset_type else 'None'} ",
@@ -223,7 +219,7 @@ class Configs:
             f" Params      : L={m.n_layer}, H={m.n_head}, E={m.n_embd}, B={m.block_size}",
             f" Training    : LR={t.learning_rate if t else '-'}, Batch={t.batch_size if t else '-'}, Accum={t.gradient_accumulation_steps if t else '-'}",
             f" Precision   : {t.dtype if t else '-'}",
-            f" Output Dir  : {out_dir}",
+            f" Output Dir  : {self.out_dir}",
             f"{'='*50}"
         ]
         return "\n".join(info_str)
