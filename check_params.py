@@ -3,7 +3,7 @@ from model import Transformer
 
 configs = args_configs
 
-def check_config(attn_type):
+def check_config(attn_type:AttnType):
     configs.attn_type = attn_type
     model = Transformer(configs)
     
@@ -27,7 +27,8 @@ def check_config(attn_type):
     total_kv_size = kv_size_per_layer * m.n_layer
     
     params = model.get_num_params()
-    print(configs.info())
+    #print(configs.info())
+    print(f"========= {attn_type.name} =========")
     print(f"Total Params: {params/1e6:.2f}M - {params}")
     print(f"KV Cache Size per token (elements): {total_kv_size}")
     print(f"KV Cache Size for {m.block_size} tokens (MB, float16): {total_kv_size * m.block_size * 2 / 1024**2:.4f} MB")
