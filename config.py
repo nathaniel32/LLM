@@ -117,9 +117,9 @@ class TrainConfig(BaseConfig):
 class AttnType(Enum):
     MHA = AttnConfig(name="attn_mha", mlp_ratio=4)
     
-    GQA_ISO = AttnConfig(name="attn_gqa_iso", mlp_ratio=4.875, kv_head=4)
-    MQA_ISO = AttnConfig(name="attn_mqa_iso", mlp_ratio=4.969, kv_head=1)
-    MLA_ISO = AttnConfig(name="attn_mla_iso", mlp_ratio=4.742, is_mla=True)
+    GQA_ISO = AttnConfig(name="attn_gqa_iso", mlp_ratio=4.75, kv_head=4)
+    MQA_ISO = AttnConfig(name="attn_mqa_iso", mlp_ratio=4.938, kv_head=1)
+    MLA_ISO = AttnConfig(name="attn_mla_iso", mlp_ratio=4.735, is_mla=True)
     
     #GQA_STD = AttnConfig(name="attn_gqa_std", mlp_ratio=4, kv_head=2)
     #MQA_STD = AttnConfig(name="attn_mqa_std", mlp_ratio=4, kv_head=1)
@@ -156,13 +156,13 @@ class TrainType(Enum):
         batch_size=4,
         gradient_accumulation_steps=4,
 
-        max_iters=2000,
-        lr_decay_iters=2000,
-        warmup_iters=200,
-        eval_iters=50,
+        max_iters=15000,
+        lr_decay_iters=15000,
+        warmup_iters=1500,
+        eval_iters=200,
 
-        eval_interval=100,
-        log_interval=10,
+        eval_interval=500,
+        log_interval=100,
 
         min_lr=6e-5,
         learning_rate=1e-3,
