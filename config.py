@@ -141,7 +141,10 @@ class DatasetType(Enum):
     SHAKESPEARE = DatasetConfig(name="shakespeare", url='https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt', dir_path=None)
 
 class ModelType(Enum):
-    RESEARCH = ModelConfig(name="model_research", block_size=768, vocab_size=50257, n_layer=6, n_head=16, n_embd=768, dropout=0.0, bias=False)
+    RESEARCH = ModelConfig(name="model_research", block_size=512, vocab_size=50257, n_layer=4, n_head=64, n_embd=512, dropout=0.0, bias=False)
+    RESEARCH_1 = ModelConfig(name="model_research_1", block_size=512, vocab_size=50257, n_layer=2, n_head=128, n_embd=512, dropout=0.0, bias=False)
+    RESEARCH_2 = ModelConfig(name="model_research_2", block_size=1024, vocab_size=50257, n_layer=2, n_head=64, n_embd=512, dropout=0.0, bias=False)
+    RESEARCH_3 = ModelConfig(name="model_research_3", block_size=512, vocab_size=50257, n_layer=2, n_head=64, n_embd=1024, dropout=0.0, bias=False)
     
     GPT2 = ModelConfig(name="gpt2", block_size=1024, vocab_size=50257, n_layer=12, n_head=12, n_embd=768, dropout=0.0, bias=True)  # 124M
     GPT2_MEDIUM = ModelConfig(name="gpt2-medium", block_size=1024, vocab_size=50257, n_layer=24, n_head=16, n_embd=1024, dropout=0.0, bias=True)  # 350M
@@ -156,38 +159,12 @@ class TrainType(Enum):
         batch_size=4,
         gradient_accumulation_steps=4,
 
-        max_iters=15000,
-        lr_decay_iters=15000,
-        warmup_iters=1500,
-        eval_iters=200,
+        max_iters=2000,
+        lr_decay_iters=2000,
+        warmup_iters=200,
+        eval_iters=50,
 
-        eval_interval=500,
-        log_interval=100,
-
-        min_lr=6e-5,
-        learning_rate=1e-3,
-
-        grad_clip=1.0,
-        weight_decay=0.01,
-        beta1=0.9,
-        beta2=0.95,
-
-        patience=None,
-        decay_lr=True
-    )
-    FLASH_RESEARCH = TrainConfig(
-        name="train_flash_research",
-        dtype='float16',
-
-        batch_size=4,
-        gradient_accumulation_steps=4,
-
-        max_iters=1000,
-        lr_decay_iters=1000,
-        warmup_iters=100,
-        eval_iters=25,
-
-        eval_interval=100,
+        eval_interval=50,
         log_interval=10,
 
         min_lr=6e-5,
