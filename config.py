@@ -118,9 +118,9 @@ class TrainConfig(BaseConfig):
 class AttnType(Enum):
     MHA = AttnConfig(name="attn_mha", mlp_ratio=4)
     
-    GQA_ISO = AttnConfig(name="attn_gqa_iso", mlp_ratio=4.75, kv_head=4)
-    MQA_ISO = AttnConfig(name="attn_mqa_iso", mlp_ratio=4.938, kv_head=1)
-    MLA_ISO = AttnConfig(name="attn_mla_iso", mlp_ratio=4.735, is_mla=True)
+    GQA_ISO = AttnConfig(name="attn_gqa_iso", mlp_ratio=4.667, kv_head=4)
+    MQA_ISO = AttnConfig(name="attn_mqa_iso", mlp_ratio=4.917, kv_head=1)
+    MLA_ISO = AttnConfig(name="attn_mla_iso", mlp_ratio=4.728, is_mla=True)
     
     #GQA_STD = AttnConfig(name="attn_gqa_std", mlp_ratio=4, kv_head=2)
     #MQA_STD = AttnConfig(name="attn_mqa_std", mlp_ratio=4, kv_head=1)
@@ -142,10 +142,8 @@ class DatasetType(Enum):
     SHAKESPEARE = DatasetConfig(name="shakespeare", url='https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt', dir_path=None)
 
 class ModelType(Enum):
-    RESEARCH = ModelConfig(name="model_research", block_size=512, vocab_size=50257, n_layer=4, n_head=64, n_embd=512, dropout=0.0, bias=False)
-    RESEARCH_1 = ModelConfig(name="model_research_1", block_size=512, vocab_size=50257, n_layer=2, n_head=128, n_embd=512, dropout=0.0, bias=False)
-    RESEARCH_2 = ModelConfig(name="model_research_2", block_size=1024, vocab_size=50257, n_layer=2, n_head=64, n_embd=512, dropout=0.0, bias=False)
-    RESEARCH_3 = ModelConfig(name="model_research_3", block_size=512, vocab_size=50257, n_layer=2, n_head=64, n_embd=1024, dropout=0.0, bias=False)
+    RESEARCH = ModelConfig(name="model_research", block_size=1024, vocab_size=50257, n_layer=2, n_head=64, n_embd=512, dropout=0.0, bias=False)
+    RESEARCH_1 = ModelConfig(name="model_research_1", block_size=512, vocab_size=50257, n_layer=2, n_head=64, n_embd=512, dropout=0.0, bias=False)
     
     GPT2 = ModelConfig(name="gpt2", block_size=1024, vocab_size=50257, n_layer=12, n_head=12, n_embd=768, dropout=0.0, bias=True)  # 124M
     GPT2_MEDIUM = ModelConfig(name="gpt2-medium", block_size=1024, vocab_size=50257, n_layer=24, n_head=16, n_embd=1024, dropout=0.0, bias=True)  # 350M
@@ -157,7 +155,7 @@ class TrainType(Enum):
         name="train_research",
         dtype='float16',
 
-        batch_size=4,
+        batch_size=2,
         gradient_accumulation_steps=4,
 
         max_iters=2000,
