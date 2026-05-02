@@ -111,6 +111,7 @@ class TrainConfig(BaseConfig):
     beta2: float
     patience: Optional[int]
     decay_lr: bool
+    save_ckpt: bool = True
 
 #########################################################################################
 
@@ -176,7 +177,8 @@ class TrainType(Enum):
         beta2=0.95,
 
         patience=None,
-        decay_lr=True
+        decay_lr=True,
+        save_ckpt=False
     )
 
 #########################################################################################

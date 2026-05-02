@@ -168,25 +168,28 @@ class Train:
         return out
     
     def save_model(self, model, optimizer, scaler, filename):
-        checkpoint = {
-            'model': model.state_dict(),
-            'optimizer': optimizer.state_dict(),
-            'scaler': scaler.state_dict(),
-            'args': asdict(self.configs),
-            'state': asdict(self.train_state),
-            'rng_state_torch': torch.get_rng_state(),
-            'rng_state_numpy': np.random.get_state(),
-            'rng_state_python': random.getstate(),
-            'rng_state_cuda': torch.cuda.get_rng_state_all() if torch.cuda.is_available() else None,
-        }
+        if self.configs.train_type.value.save_ckpt:
+            checkpoint = {
+                'model': model.state_dict(),
+                'optimizer': optimizer.state_dict(),
+                'scaler': scaler.state_dict(),
+                'args': asdict(self.configs),
+                'state': asdict(self.train_state),
+                'rng_state_torch': torch.get_rng_state(),
+                'rng_state_numpy': np.random.get_state(),
+                'rng_state_python': random.getstate(),
+                'rng_state_cuda': torch.cuda.get_rng_state_all() if torch.cuda.is_available() else None,
+            }
 
-        os.makedirs(self.configs.out_dir, exist_ok=True)
+            os.makedirs(self.configs.out_dir, exist_ok=True)
 
-        path = os.path.join(self.configs.out_dir, filename)
-        print(f"saving checkpoint to {path}")
-        
-        torch.save(checkpoint, path)
-        print("Checkpoint saved successfully.")
+            path = os.path.join(self.configs.out_dir, filename)
+            print(f"saving checkpoint to {path}")
+            
+            torch.save(checkpoint, path)
+            print("Checkpoint saved successfully.")
+        else:
+            print("save_ckpt:", self.configs.train_type.value.save_ckpt)
     
     def train(self, resume=True):
         model, optimizer, scaler = self.get_model(resume=resume)
