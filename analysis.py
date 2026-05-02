@@ -1,7 +1,7 @@
 import os
 import json
 import matplotlib.pyplot as plt
-from config import Configs, AttnType, train_type, pos_type, norm_type, dataset_type, model_type
+from config import Configs, AttnType, PosType, TrainType, NormType, ModelType, DatasetType, train_type, dataset_type, norm_type, model_type, attn_type, pos_type
 
 def load_data(config:Configs):
     data = {}
@@ -59,14 +59,19 @@ def plot_attention_comparison(configs_list, save_dir, metric_types=['loss', 'per
 configs_list = [
     Configs(
         flash=True,
-        train_type=train_type,
-        dataset_type=dataset_type,
-        model_type=model_type,
-        attn_type=attn_type,
-        pos_type=pos_type,
-        norm_type=norm_type
+        train_type=tt,
+        dataset_type=dt,
+        model_type=mt,
+        attn_type=at,
+        pos_type=pt,
+        norm_type=nt
     )
-    for attn_type in AttnType
+    for tt in [train_type]
+    for dt in [dataset_type]
+    for mt in [model_type]
+    for at in AttnType
+    for pt in PosType
+    for nt in [norm_type]
 ]
 
-plot_attention_comparison(configs_list, save_dir="out")
+plot_attention_comparison(configs_list, save_dir="out", metric_types=['perplexity'])
