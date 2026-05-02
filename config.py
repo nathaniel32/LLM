@@ -118,13 +118,13 @@ class TrainConfig(BaseConfig):
 class AttnType(Enum):
     MHA = AttnConfig(name="attn_mha", mlp_ratio=4)
     
+    GQA_STD = AttnConfig(name="attn_gqa_std", mlp_ratio=4, kv_head=2)
+    MQA_STD = AttnConfig(name="attn_mqa_std", mlp_ratio=4, kv_head=1)
+    MLA_STD = AttnConfig(name="attn_mla_std", mlp_ratio=4, is_mla=True)
+
     GQA_ISO = AttnConfig(name="attn_gqa_iso", mlp_ratio=4.667, kv_head=4)
     MQA_ISO = AttnConfig(name="attn_mqa_iso", mlp_ratio=4.917, kv_head=1)
     MLA_ISO = AttnConfig(name="attn_mla_iso", mlp_ratio=4.728, is_mla=True)
-    
-    #GQA_STD = AttnConfig(name="attn_gqa_std", mlp_ratio=4, kv_head=2)
-    #MQA_STD = AttnConfig(name="attn_mqa_std", mlp_ratio=4, kv_head=1)
-    #MLA_STD = AttnConfig(name="attn_mla_std", mlp_ratio=4, is_mla=True)
 
 class PosType(Enum):
     WPE = PosConfig(name="pos_wpe")
@@ -143,15 +143,16 @@ class DatasetType(Enum):
 
 class ModelType(Enum):
     ATTN_RESEARCH = ModelConfig(name="attn_research", block_size=1024, vocab_size=50257, n_layer=2, n_head=64, n_embd=512, dropout=0.0, bias=False)
-    
+    POS_RESEARCH = ModelConfig(name="pos_research", block_size=2048, vocab_size=50257, n_layer=6, n_head=8, n_embd=768, dropout=0.0, bias=False)
+
     GPT2 = ModelConfig(name="gpt2", block_size=1024, vocab_size=50257, n_layer=12, n_head=12, n_embd=768, dropout=0.0, bias=True)  # 124M
     GPT2_MEDIUM = ModelConfig(name="gpt2-medium", block_size=1024, vocab_size=50257, n_layer=24, n_head=16, n_embd=1024, dropout=0.0, bias=True)  # 350M
     GPT2_LARGE = ModelConfig(name="gpt2-large", block_size=1024, vocab_size=50257, n_layer=36, n_head=20, n_embd=1280, dropout=0.0, bias=True)  # 774M
     GPT2_XL = ModelConfig(name="gpt2-xl", block_size=1024, vocab_size=50257, n_layer=48, n_head=25, n_embd=1600, dropout=0.0, bias=True)  # 1558M
 
 class TrainType(Enum):
-    RESEARCH = TrainConfig(
-        name="train_research",
+    DEFAULT = TrainConfig(
+        name="train_default",
         dtype='float16',
 
         batch_size=2,
@@ -238,9 +239,9 @@ import argparse
 parser = argparse.ArgumentParser()
 
 parser.add_argument("--no_flash", action="store_false", dest="flash")
-parser.add_argument("--train_type", type=str, default="RESEARCH")
+parser.add_argument("--train_type", type=str, default="DEFAULT")
 parser.add_argument("--dataset_type", type=str, default="FINEWEB_EDU")
-parser.add_argument("--model_type", type=str, default="RESEARCH")
+parser.add_argument("--model_type", type=str, default="GPT2")
 parser.add_argument("--attn_type", type=str, default="MHA")
 parser.add_argument("--pos_type", type=str, default="ROPE")
 parser.add_argument("--norm_type", type=str, default="RMS")
