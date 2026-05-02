@@ -142,8 +142,7 @@ class DatasetType(Enum):
     SHAKESPEARE = DatasetConfig(name="shakespeare", url='https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt', dir_path=None)
 
 class ModelType(Enum):
-    RESEARCH = ModelConfig(name="model_research", block_size=1024, vocab_size=50257, n_layer=2, n_head=64, n_embd=512, dropout=0.0, bias=False)
-    RESEARCH_1 = ModelConfig(name="model_research_1", block_size=512, vocab_size=50257, n_layer=2, n_head=64, n_embd=512, dropout=0.0, bias=False)
+    ATTN_RESEARCH = ModelConfig(name="attn_research", block_size=1024, vocab_size=50257, n_layer=2, n_head=64, n_embd=512, dropout=0.0, bias=False)
     
     GPT2 = ModelConfig(name="gpt2", block_size=1024, vocab_size=50257, n_layer=12, n_head=12, n_embd=768, dropout=0.0, bias=True)  # 124M
     GPT2_MEDIUM = ModelConfig(name="gpt2-medium", block_size=1024, vocab_size=50257, n_layer=24, n_head=16, n_embd=1024, dropout=0.0, bias=True)  # 350M
