@@ -141,7 +141,7 @@ class DatasetType(Enum):
     SHAKESPEARE = DatasetConfig(name="shakespeare", url='https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt', dir_path=None)
 
 class ModelType(Enum):
-    RESEARCH = ModelConfig(name="model_research", block_size=512, vocab_size=50257, n_layer=12, n_head=48, n_embd=960, dropout=0.0, bias=False)
+    RESEARCH = ModelConfig(name="model_research", block_size=1024, vocab_size=50257, n_layer=2, n_head=48, n_embd=960, dropout=0.0, bias=False)
     
     SMALL = ModelConfig(name="model_small", block_size=1024, vocab_size=50257, n_layer=12, n_head=12, n_embd=768, dropout=0.0, bias=False)
     MEDIUM = ModelConfig(name="model_medium", block_size=1024, vocab_size=50257, n_layer=24, n_head=16, n_embd=1024, dropout=0.0, bias=False)
@@ -158,15 +158,15 @@ class TrainType(Enum):
         name="train_research",
         dtype='float16',
 
-        batch_size=1,
+        batch_size=2,
         gradient_accumulation_steps=8,
 
         max_iters=1000,
         lr_decay_iters=1000,
         warmup_iters=100,
-        eval_iters=50,
+        eval_iters=25,
 
-        eval_interval=200,
+        eval_interval=100,
         log_interval=10,
 
         min_lr=6e-5,
