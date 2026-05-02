@@ -117,9 +117,9 @@ class TrainConfig(BaseConfig):
 class AttnType(Enum):
     MHA = AttnConfig(name="attn_mha", mlp_ratio=4)
     
-    GQA_ISO = AttnConfig(name="attn_gqa_iso", mlp_ratio=4.917, kv_head=4)
-    MQA_ISO = AttnConfig(name="attn_mqa_iso", mlp_ratio=4.98, kv_head=1)
-    MLA_ISO = AttnConfig(name="attn_mla_iso", mlp_ratio=4.745, is_mla=True)
+    GQA_ISO = AttnConfig(name="attn_gqa_iso", mlp_ratio=4.875, kv_head=4)
+    MQA_ISO = AttnConfig(name="attn_mqa_iso", mlp_ratio=4.969, kv_head=1)
+    MLA_ISO = AttnConfig(name="attn_mla_iso", mlp_ratio=4.742, is_mla=True)
     
     #GQA_STD = AttnConfig(name="attn_gqa_std", mlp_ratio=4, kv_head=2)
     #MQA_STD = AttnConfig(name="attn_mqa_std", mlp_ratio=4, kv_head=1)
