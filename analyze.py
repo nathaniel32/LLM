@@ -72,4 +72,4 @@ configs_list = [
 ]
 
 plot_comparison(configs_list, log_type='val_log', cols=['val_loss', 'val_perplexity', 'val_accuracy'])
-plot_comparison(configs_list, log_type='train_log', cols=['train_loss', 'time_ms', 'wpe_grad_norm', 'vram_gb'])
+plot_comparison(configs_list, log_type='train_log', cols=['train_loss', 'time_ms', 'mfu_percent', 'weight_norm', 'grad_norm', 'wpe_grad_norm', 'vram_gb'])
