@@ -283,13 +283,12 @@ class Train:
                 # backward pass, with gradient scaling if training in fp16
                 scaler.scale(loss).backward()
 
+            scaler.unscale_(optimizer)
+            diagnostics = self.calculate_diagnostics(model)
+
             # clip the gradient
             if self.configs.train_type.value.grad_clip is not None:
-                scaler.unscale_(optimizer)
-                diagnostics = self.calculate_diagnostics(model)
-                torch.nn.utils.clip_grad_norm_(model.parameters(), self.configs.train_type.value.grad_clip)
-            else:
-                diagnostics = self.calculate_diagnostics(model)
+                torch.nn.utils.clip_grad_norm_(model.parameters(), self.configs.train_type.value.grad_clip)                
 
             # step the optimizer and scaler if training in fp16
             scaler.step(optimizer)
