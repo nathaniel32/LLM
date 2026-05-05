@@ -142,6 +142,7 @@ class DatasetType(Enum):
     SHAKESPEARE = DatasetConfig(name="shakespeare", url='https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt', dir_path=None)
 
 class ModelType(Enum):
+    TINY_RESEARCH = ModelConfig(name="tiny_research", block_size=256, vocab_size=50257, n_layer=2, n_head=4, n_embd=32, dropout=0.0, bias=False)
     ATTN_RESEARCH = ModelConfig(name="attn_research", block_size=1024, vocab_size=50257, n_layer=2, n_head=64, n_embd=512, dropout=0.0, bias=False)
     POS_RESEARCH = ModelConfig(name="pos_research", block_size=2048, vocab_size=50257, n_layer=6, n_head=8, n_embd=768, dropout=0.0, bias=False)
 
@@ -176,7 +177,7 @@ class TrainType(Enum):
 
         patience=None,
         decay_lr=True,
-        save_ckpt=False
+        save_ckpt=True
     )
 
 #########################################################################################
