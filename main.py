@@ -157,6 +157,8 @@ class Main:
         model.eval()
         model.to(self.device)
 
+        self.configs.in_training = False
+
         label = "use_cache=True" if self.use_cache else "use_cache=False"
         print(f'\n[{label}]')
         print(self.configs.info())

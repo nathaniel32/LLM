@@ -221,7 +221,8 @@ class Train:
     
     def train(self, resume=True):
         model, optimizer, scaler = self.get_model(resume=resume)
-
+        self.configs.in_training = True
+        
         if not resume:
             self.set_seed(1337)
 

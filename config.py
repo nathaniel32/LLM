@@ -193,6 +193,7 @@ class Configs:
     dataset_type: Optional[DatasetType] = None
 
     out_root: str = os.path.join(project_root_global, "out")
+    in_training: bool = False
     
     @property
     def out_dir(self) -> str:
