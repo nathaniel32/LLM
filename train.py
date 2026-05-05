@@ -10,6 +10,7 @@ from logger import Logger
 from dataclasses import asdict
 from dataclasses import dataclass
 import random
+from utils import set_seed
 
 @dataclass
 class TrainState:
@@ -22,7 +23,7 @@ class TrainState:
 
 class Train:
     def __init__(self, configs:Configs):
-        self.set_seed(1337)
+        set_seed()
         torch.backends.cuda.matmul.allow_tf32 = True # allow tf32 on matmul
         torch.backends.cudnn.allow_tf32 = True # allow tf32 on cudnn
 
@@ -36,15 +37,6 @@ class Train:
         self.logger = Logger(out_dir=configs.out_dir)
         
         self.configs.dataset_type.value.prepare_dataset()
-
-    def set_seed(self, seed=1337):        
-        random.seed(seed)
-        np.random.seed(seed)
-        torch.manual_seed(seed)
-        
-        if torch.cuda.is_available():
-            torch.cuda.manual_seed(seed)
-            torch.cuda.manual_seed_all(seed)
     
     def get_batch(self, split):
         # np.memmap every batch to avoid a memory leak
@@ -224,7 +216,7 @@ class Train:
         self.configs.in_training = True
         
         if not resume:
-            self.set_seed(1337)
+            set_seed()
 
         X, Y = self.get_batch('train')
         

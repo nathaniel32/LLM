@@ -5,14 +5,11 @@ from model import Transformer
 import tiktoken
 from benchmark import Benchmark
 from config import Configs, AttnType, PosType, NormType, ModelType, args, args_configs
+from utils import set_seed
 
 class Main:
     def __init__(self, configs:Configs, use_cache=False, stream=False):
-        seed = 1337
-        torch.manual_seed(seed)
-        torch.cuda.manual_seed(seed)
-        torch.backends.cuda.matmul.allow_tf32 = True # allow tf32 on matmul
-        torch.backends.cudnn.allow_tf32 = True # allow tf32 on cudnn
+        set_seed()
 
         self.configs = configs
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
