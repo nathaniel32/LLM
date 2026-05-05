@@ -51,21 +51,29 @@ class Train:
         
         self.configs.dataset_type.value.prepare_dataset()
     
-    def get_batch(self, split):
-        # np.memmap every batch to avoid a memory leak
-        if split == 'train':
-            data = np.memmap(os.path.join(self.configs.dataset_type.value.root_dir, 'train.bin'), dtype=np.uint16, mode='r')
+    def save_model(self, model, optimizer, scaler, filename):
+        if self.configs.train_type.value.save_ckpt:
+            checkpoint = Checkpoint(
+                model=model.state_dict(),
+                optimizer=optimizer.state_dict(),
+                scaler=scaler.state_dict(),
+                args=asdict(self.configs),
+                state=asdict(self.train_state),
+                rng_state_torch=torch.get_rng_state(),
+                rng_state_numpy=np.random.get_state(),
+                rng_state_python=random.getstate(),
+                rng_state_cuda=torch.cuda.get_rng_state_all() if torch.cuda.is_available() else None,
+            )
+
+            os.makedirs(self.configs.out_dir, exist_ok=True)
+
+            path = os.path.join(self.configs.out_dir, filename)
+            print(f"saving checkpoint to {path}")
+            
+            torch.save(asdict(checkpoint), path)
+            print("Checkpoint saved successfully.")
         else:
-            data = np.memmap(os.path.join(self.configs.dataset_type.value.root_dir, 'val.bin'), dtype=np.uint16, mode='r')
-        ix = torch.randint(len(data) - self.configs.model_type.value.block_size, (self.configs.train_type.value.batch_size,))
-        x = torch.stack([torch.from_numpy((data[i:i+self.configs.model_type.value.block_size]).astype(np.int64)) for i in ix])
-        y = torch.stack([torch.from_numpy((data[i+1:i+1+self.configs.model_type.value.block_size]).astype(np.int64)) for i in ix])
-        if self.device == 'cuda':
-            # pin arrays x,y, which allows us to move them to GPU asynchronously (non_blocking=True)
-            x, y = x.pin_memory().to(self.device, non_blocking=True), y.pin_memory().to(self.device, non_blocking=True)
-        else:
-            x, y = x.to(self.device), y.to(self.device)
-        return x, y
+            print("save_ckpt:", self.configs.train_type.value.save_ckpt)
     
     def get_model(self, resume=False, filename='last_checkpoint.pt'):
         ckpt_path = os.path.join(self.configs.out_dir, filename)
@@ -116,7 +124,23 @@ class Train:
         print(f"Total Params: {model.get_num_params()/1e6:.2f}M")
 
         return model, optimizer, scaler
-        
+    
+    def get_batch(self, split):
+        # np.memmap every batch to avoid a memory leak
+        if split == 'train':
+            data = np.memmap(os.path.join(self.configs.dataset_type.value.root_dir, 'train.bin'), dtype=np.uint16, mode='r')
+        else:
+            data = np.memmap(os.path.join(self.configs.dataset_type.value.root_dir, 'val.bin'), dtype=np.uint16, mode='r')
+        ix = torch.randint(len(data) - self.configs.model_type.value.block_size, (self.configs.train_type.value.batch_size,))
+        x = torch.stack([torch.from_numpy((data[i:i+self.configs.model_type.value.block_size]).astype(np.int64)) for i in ix])
+        y = torch.stack([torch.from_numpy((data[i+1:i+1+self.configs.model_type.value.block_size]).astype(np.int64)) for i in ix])
+        if self.device == 'cuda':
+            # pin arrays x,y, which allows us to move them to GPU asynchronously (non_blocking=True)
+            x, y = x.pin_memory().to(self.device, non_blocking=True), y.pin_memory().to(self.device, non_blocking=True)
+        else:
+            x, y = x.to(self.device), y.to(self.device)
+        return x, y
+
     # learning rate decay scheduler (cosine with warmup)
     def get_lr(self, it):
         # 1) linear warmup for warmup_iters steps
@@ -199,30 +223,6 @@ class Train:
             
         model.train()
         return out
-    
-    def save_model(self, model, optimizer, scaler, filename):
-        if self.configs.train_type.value.save_ckpt:
-            checkpoint = Checkpoint(
-                model=model.state_dict(),
-                optimizer=optimizer.state_dict(),
-                scaler=scaler.state_dict(),
-                args=asdict(self.configs),
-                state=asdict(self.train_state),
-                rng_state_torch=torch.get_rng_state(),
-                rng_state_numpy=np.random.get_state(),
-                rng_state_python=random.getstate(),
-                rng_state_cuda=torch.cuda.get_rng_state_all() if torch.cuda.is_available() else None,
-            )
-
-            os.makedirs(self.configs.out_dir, exist_ok=True)
-
-            path = os.path.join(self.configs.out_dir, filename)
-            print(f"saving checkpoint to {path}")
-            
-            torch.save(asdict(checkpoint), path)
-            print("Checkpoint saved successfully.")
-        else:
-            print("save_ckpt:", self.configs.train_type.value.save_ckpt)
     
     def train(self, resume=True):
         model, optimizer, scaler = self.get_model(resume=resume)
