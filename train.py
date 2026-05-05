@@ -19,7 +19,7 @@ class Checkpoint:
     optimizer: Dict[str, Any]
     scaler: Dict[str, Any]
     configs: Dict[str, Any]
-    state: Dict[str, Any]
+    train_state: Dict[str, Any]
     rng_state_torch: Any
     rng_state_numpy: Tuple[Any, ...]
     rng_state_python: Tuple[Any, ...]
@@ -88,7 +88,7 @@ class Train:
             
             checkpoint = Checkpoint(**torch.load(ckpt_path, map_location=self.device))
             self.configs = Configs(**checkpoint.configs)
-            self.train_state = TrainState(**checkpoint.state)
+            self.train_state = TrainState(**checkpoint.train_state)
             
             print(self.configs.info())
             print(self.train_state.info())
