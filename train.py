@@ -11,6 +11,19 @@ from dataclasses import asdict
 from dataclasses import dataclass
 import random
 from utils import set_seed
+from typing import Any, Dict, Optional, List, Tuple
+
+@dataclass
+class Checkpoint:
+    model: Dict[str, Any]
+    optimizer: Dict[str, Any]
+    scaler: Dict[str, Any]
+    args: Dict[str, Any]
+    state: Dict[str, Any]
+    rng_state_torch: Any
+    rng_state_numpy: Tuple[Any, ...]
+    rng_state_python: Tuple[Any, ...]
+    rng_state_cuda: Optional[List[Any]]
 
 @dataclass
 class TrainState:
@@ -65,9 +78,9 @@ class Train:
         if resume:
             print(f"Resuming training from {self.configs.out_dir}")
             
-            checkpoint = torch.load(ckpt_path, map_location=self.device)
-            self.configs = Configs(**checkpoint['args'])
-            self.train_state = TrainState(**checkpoint['state'])
+            checkpoint = Checkpoint(**torch.load(ckpt_path, map_location=self.device))
+            self.configs = Configs(**checkpoint.args)
+            self.train_state = TrainState(**checkpoint.state)
             
             print(self.configs.info())
             print(self.train_state.info())
@@ -79,7 +92,7 @@ class Train:
         optimizer = model.configure_optimizers(self.configs.train_type.value.weight_decay, self.configs.train_type.value.learning_rate, (self.configs.train_type.value.beta1, self.configs.train_type.value.beta2), self.device)
         
         if resume:
-            state_dict = checkpoint['model']
+            state_dict = checkpoint.model
 
             unwanted_prefix = '_orig_mod.'
             for k,v in list(state_dict.items()):
@@ -87,14 +100,14 @@ class Train:
                     state_dict[k[len(unwanted_prefix):]] = state_dict.pop(k)
             
             model.load_state_dict(state_dict)
-            optimizer.load_state_dict(checkpoint['optimizer'])
-            scaler.load_state_dict(checkpoint['scaler'])
+            optimizer.load_state_dict(checkpoint.optimizer)
+            scaler.load_state_dict(checkpoint.scaler)
             
-            torch.set_rng_state(checkpoint['rng_state_torch'].cpu())
-            np.random.set_state(checkpoint['rng_state_numpy'])
-            random.setstate(checkpoint['rng_state_python'])
-            if checkpoint['rng_state_cuda'] is not None and self.device == 'cuda' and torch.cuda.is_available():
-                rng_states = [s.cpu() for s in checkpoint['rng_state_cuda']]
+            torch.set_rng_state(checkpoint.rng_state_torch.cpu())
+            np.random.set_state(checkpoint.rng_state_numpy)
+            random.setstate(checkpoint.rng_state_python)
+            if checkpoint.rng_state_cuda is not None and self.device == 'cuda' and torch.cuda.is_available():
+                rng_states = [s.cpu() for s in checkpoint.rng_state_cuda]
                 torch.cuda.set_rng_state_all(rng_states)
         
         self.logger.set_meta({"params": model.get_num_params(), **self.configs.to_dict()})
@@ -189,24 +202,24 @@ class Train:
     
     def save_model(self, model, optimizer, scaler, filename):
         if self.configs.train_type.value.save_ckpt:
-            checkpoint = {
-                'model': model.state_dict(),
-                'optimizer': optimizer.state_dict(),
-                'scaler': scaler.state_dict(),
-                'args': asdict(self.configs),
-                'state': asdict(self.train_state),
-                'rng_state_torch': torch.get_rng_state(),
-                'rng_state_numpy': np.random.get_state(),
-                'rng_state_python': random.getstate(),
-                'rng_state_cuda': torch.cuda.get_rng_state_all() if torch.cuda.is_available() else None,
-            }
+            checkpoint = Checkpoint(
+                model=model.state_dict(),
+                optimizer=optimizer.state_dict(),
+                scaler=scaler.state_dict(),
+                args=asdict(self.configs),
+                state=asdict(self.train_state),
+                rng_state_torch=torch.get_rng_state(),
+                rng_state_numpy=np.random.get_state(),
+                rng_state_python=random.getstate(),
+                rng_state_cuda=torch.cuda.get_rng_state_all() if torch.cuda.is_available() else None,
+            )
 
             os.makedirs(self.configs.out_dir, exist_ok=True)
 
             path = os.path.join(self.configs.out_dir, filename)
             print(f"saving checkpoint to {path}")
             
-            torch.save(checkpoint, path)
+            torch.save(asdict(checkpoint), path)
             print("Checkpoint saved successfully.")
         else:
             print("save_ckpt:", self.configs.train_type.value.save_ckpt)
