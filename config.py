@@ -191,7 +191,6 @@ class Configs:
     norm_type: NormType
     train_type: Optional[TrainType] = None
     dataset_type: Optional[DatasetType] = None
-
     out_root: str = os.path.join(project_root_global, "out")
     in_training: bool = False
     
