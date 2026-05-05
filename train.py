@@ -215,9 +215,6 @@ class Train:
         model, optimizer, scaler = self.get_model(resume=resume)
         self.configs.in_training = True
         
-        if not resume:
-            set_seed()
-
         X, Y = self.get_batch('train')
         
         local_iter_num = 0
