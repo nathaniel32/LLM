@@ -126,7 +126,6 @@ class Train:
         coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio)) # coeff ranges 0..1
         return self.configs.train_type.value.min_lr + coeff * (self.configs.train_type.value.learning_rate - self.configs.train_type.value.min_lr)
     
-    @torch.no_grad()
     def calculate_diagnostics(self, model):
         diag = {}
         
