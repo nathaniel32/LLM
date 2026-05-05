@@ -18,7 +18,7 @@ def load_data(config:Configs):
     
     return data
 
-def plot_attention_comparison(configs_list, save_dir, metric_types=['loss', 'perplexity', 'accuracy']):
+def plot_validation_comparison(configs_list, save_dir, metric_types=['loss', 'perplexity', 'accuracy']):
     
     for metric_type in metric_types:
         plt.figure(figsize=(12, 7))
@@ -56,6 +56,41 @@ def plot_attention_comparison(configs_list, save_dir, metric_types=['loss', 'per
         plt.savefig(save_path, dpi=300, bbox_inches='tight')
         plt.show()
 
+def plot_train_comparison(configs_list, save_dir, metric_types=['train_loss', 'time_ms', 'wpe_grad_norm', 'vram_gb']):
+    
+    for metric_type in metric_types:
+        plt.figure(figsize=(12, 7))
+        cmap = plt.get_cmap('tab10')
+
+        for i, conf in enumerate(configs_list):
+            conf:Configs
+
+            log_data = load_data(conf)
+
+            if not log_data:
+                continue
+            
+            train_data = log_data.get('train_log')
+                
+            label_name = f"{conf.attn_type.name} | {conf.pos_type.name} | {log_data['params']/1e6:.2f}M"
+            col_iters = [d['iter'] for d in train_data]
+            
+            col_val_loss = [d[metric_type] for d in train_data]
+            plt.plot(col_iters, col_val_loss, '-', label=label_name, linewidth=2.5, color=cmap(i))
+        
+        plt.yscale('log')
+        plt.title(f'Attention Variants Performance Comparison - {metric_type}', fontsize=14, pad=15)
+        plt.xlabel('Iterations', fontsize=12)
+        plt.ylabel(f'{metric_type} (Log Scale)', fontsize=12)
+        plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0.)
+        plt.grid(True, which="both", ls="-", alpha=0.15)
+        plt.tight_layout()
+
+        save_path = os.path.join(save_dir, f'{metric_type}.png')
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        plt.savefig(save_path, dpi=300, bbox_inches='tight')
+        plt.show()
+
 configs_list = [
     Configs(
         flash=True,
@@ -74,4 +109,5 @@ configs_list = [
     for nt in [norm_type]
 ]
 
-plot_attention_comparison(configs_list, save_dir="out", metric_types=['perplexity'])
+plot_validation_comparison(configs_list, save_dir="out", metric_types=['perplexity'])
+plot_train_comparison(configs_list, save_dir="out")

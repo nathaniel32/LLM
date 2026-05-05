@@ -126,6 +126,37 @@ class Train:
         coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio)) # coeff ranges 0..1
         return self.configs.train_type.value.min_lr + coeff * (self.configs.train_type.value.learning_rate - self.configs.train_type.value.min_lr)
     
+    @torch.no_grad()
+    def calculate_diagnostics(self, model):
+        diag = {}
+        
+        # 1. L2 Weight Norm
+        total_w_norm = 0.0
+        for p in model.parameters():
+            total_w_norm += p.data.norm(2).item() ** 2
+        diag['weight_norm'] = total_w_norm ** 0.5
+        
+        # Global Grad Norm
+        total_g_norm = 0.0
+        for p in model.parameters():
+            if p.grad is not None:
+                total_g_norm += p.grad.detach().data.norm(2).item() ** 2
+        diag['grad_norm'] = total_g_norm ** 0.5
+
+        # WPE Specific Grad Norm (Penting untuk melihat seberapa aktif posisi dipelajari)
+        wpe_g_norm = 0.0
+        if hasattr(model.transformer, 'wpe') and model.transformer.wpe is not None:
+            for p in model.transformer.wpe.parameters():
+                if p.grad is not None:
+                    wpe_g_norm += p.grad.detach().data.norm(2).item() ** 2
+        diag['wpe_grad_norm'] = wpe_g_norm ** 0.5
+
+        # 3. VRAM Usage (GB)
+        if self.device == 'cuda':
+            diag['vram_gb'] = torch.cuda.max_memory_allocated() / (1024**3)
+            
+        return diag
+
     # helps estimate an arbitrarily accurate loss over either split using many batches
     @torch.no_grad()
     def estimate_metrics(self, model):
@@ -255,7 +286,10 @@ class Train:
             # clip the gradient
             if self.configs.train_type.value.grad_clip is not None:
                 scaler.unscale_(optimizer)
+                diagnostics = self.calculate_diagnostics(model)
                 torch.nn.utils.clip_grad_norm_(model.parameters(), self.configs.train_type.value.grad_clip)
+            else:
+                diagnostics = self.calculate_diagnostics(model)
 
             # step the optimizer and scaler if training in fp16
             scaler.step(optimizer)
@@ -280,7 +314,8 @@ class Train:
                     "iter": self.train_state.iter_num,
                     "train_loss": float(lossf),
                     "time_ms": delta_time*1000,
-                    "mfu_percent": running_mfu * 100 if running_mfu >= 0 else None
+                    "mfu_percent": running_mfu * 100 if running_mfu >= 0 else None,
+                    **diagnostics
                 })
 
             self.train_state.iter_num += 1
