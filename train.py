@@ -188,11 +188,9 @@ class Train:
             mean_loss = losses.mean().item()
             mean_acc = accuracies.mean().item()
             
-            out[split] = {
-                'loss': mean_loss,
-                'perplexity': torch.exp(torch.tensor(mean_loss)).item(),
-                'accuracy': mean_acc
-            }
+            out[f'{split}_loss'] = mean_loss
+            out[f'{split}_perplexity'] = torch.exp(torch.tensor(mean_loss)).item()
+            out[f'{split}_accuracy'] = mean_acc
             
         model.train()
         return out
@@ -243,8 +241,8 @@ class Train:
 
                 self.save_model(model, optimizer, scaler, filename='last_checkpoint.pt')
                 
-                if metrics['val']['loss'] < self.train_state.best_val_loss:
-                    self.train_state.best_val_loss = metrics['val']['loss']
+                if metrics['val_loss'] < self.train_state.best_val_loss:
+                    self.train_state.best_val_loss = metrics['val_loss']
                     self.train_state.patience_counter = 0
                     self.save_model(model, optimizer, scaler, filename='best_checkpoint.pt')
                 else:
@@ -254,8 +252,8 @@ class Train:
                     "iter": self.train_state.iter_num,
                     "patience": self.train_state.patience_counter,
                     'best_val_loss': float(self.train_state.best_val_loss) if self.train_state.best_val_loss != float('inf') else None,
-                    "metrics": metrics,
-                    "lr": lr
+                    "lr": lr,
+                    **metrics
                 })
 
                 if self.configs.train_type.value.patience is not None:
