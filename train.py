@@ -18,7 +18,7 @@ class Checkpoint:
     model: Dict[str, Any]
     optimizer: Dict[str, Any]
     scaler: Dict[str, Any]
-    args: Dict[str, Any]
+    configs: Dict[str, Any]
     state: Dict[str, Any]
     rng_state_torch: Any
     rng_state_numpy: Tuple[Any, ...]
@@ -57,7 +57,7 @@ class Train:
                 model=model.state_dict(),
                 optimizer=optimizer.state_dict(),
                 scaler=scaler.state_dict(),
-                args=asdict(self.configs),
+                configs=asdict(self.configs),
                 state=asdict(self.train_state),
                 rng_state_torch=torch.get_rng_state(),
                 rng_state_numpy=np.random.get_state(),
@@ -87,7 +87,7 @@ class Train:
             print(f"Resuming training from {self.configs.out_dir}")
             
             checkpoint = Checkpoint(**torch.load(ckpt_path, map_location=self.device))
-            self.configs = Configs(**checkpoint.args)
+            self.configs = Configs(**checkpoint.configs)
             self.train_state = TrainState(**checkpoint.state)
             
             print(self.configs.info())
