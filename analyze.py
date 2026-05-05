@@ -41,9 +41,9 @@ def plot_comparison(configs_list, log_type, cols, save_dir='out/plot'):
             plt.plot(col_iters, col_val_loss, '-', label=label_name, linewidth=2.5, color=cmap(i))
 
         plt.yscale('log')
-        plt.title(f'Attention Variants Performance Comparison - {col}', fontsize=14, pad=15)
+        plt.title(f'Comparison - {col}', fontsize=14, pad=15)
         plt.xlabel('Iterations', fontsize=12)
-        plt.ylabel(f'{col} (Log Scale)', fontsize=12)
+        plt.ylabel(col, fontsize=12)
         plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0.)
         plt.grid(True, which="both", ls="-", alpha=0.15)
         plt.tight_layout()
