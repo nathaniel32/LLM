@@ -58,7 +58,7 @@ class Train:
                 optimizer=optimizer.state_dict(),
                 scaler=scaler.state_dict(),
                 configs=asdict(self.configs),
-                state=asdict(self.train_state),
+                train_state=asdict(self.train_state),
                 rng_state_torch=torch.get_rng_state(),
                 rng_state_numpy=np.random.get_state(),
                 rng_state_python=random.getstate(),
