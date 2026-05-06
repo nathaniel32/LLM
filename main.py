@@ -1,10 +1,9 @@
 import torch
 from torch.nn import functional as F
 from contextlib import nullcontext
-from model import Transformer
 import tiktoken
 from benchmark import Benchmark
-from config import Configs, AttnType, PosType, NormType, ModelType, args, args_configs
+from config import Configs, args, args_configs
 from utils import set_seed, ModelContext
 
 class Main:
