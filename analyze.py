@@ -2,21 +2,7 @@ import os
 import json
 import matplotlib.pyplot as plt
 from config import Configs, AttnType, PosType, TrainType, NormType, ModelType, DatasetType, train_type, dataset_type, norm_type, model_type, attn_type, pos_type
-
-def load_data(config:Configs):
-    data = {}
-
-    if config.out_dir is not None:
-        log_path = os.path.join(config.out_dir, 'metrics.json')
-        
-        if not os.path.exists(log_path):
-            print(f"Warning: File not found at {log_path}")
-            return data
-            
-        with open(log_path, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-    
-    return data
+from utils import ModelContext
 
 def plot_comparison(configs_list, log_type, cols, save_dir='out/plot'):
     
@@ -25,9 +11,9 @@ def plot_comparison(configs_list, log_type, cols, save_dir='out/plot'):
         cmap = plt.get_cmap('tab10')
 
         for i, conf in enumerate(configs_list):
-            conf:Configs
+            model_context = ModelContext(configs=conf)
 
-            metrics_data = load_data(conf)
+            metrics_data = model_context.logger.data
 
             if not metrics_data:
                 continue
