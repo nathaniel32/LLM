@@ -2,12 +2,12 @@ import random
 import torch
 import numpy as np
 import os
-from dataclasses import asdict
-from dataclasses import dataclass
+from dataclasses import dataclass, field, asdict
 import random
 from typing import Optional
 from model import Transformer
 from config import Configs, AttnType, PosType, NormType
+import json
 
 def set_seed(seed=1234):        
     random.seed(seed)
@@ -27,6 +27,58 @@ class TrainState:
     def info(self):
         return {"iter_num": self.iter_num, "best_val_loss": self.best_val_loss, "patience_counter": self.patience_counter}
 
+class Logger:
+    def __init__(self, out_dir, filename="metrics.json"):
+        self.out_dir = out_dir
+        self.log_path = os.path.join(out_dir, filename)
+        os.makedirs(out_dir, exist_ok=True)
+        self.data: dict = {}
+        self._load()
+
+    def _load(self):
+        if os.path.exists(self.log_path):
+            with open(self.log_path, 'r', encoding='utf-8') as f:
+                self.data = json.load(f)
+
+    def set_meta(self, meta_dict: dict):            
+        self.data.update(meta_dict)
+        self._save()
+
+    def _sort(self, category, key):
+        self.data[category] = sorted(self.data[category], key=lambda x: x.get(key, float('inf')))
+
+    def log(self, category: str, metrics: dict, key: str = None):
+        print(category, metrics)
+        
+        metrics_copy = metrics.copy()
+
+        if category not in self.data:
+            self.data[category] = []
+
+        if key is not None and key in metrics_copy:
+            for item in self.data[category]:
+                if item.get(key) == metrics_copy[key]:
+                    item.update(metrics_copy)
+                    self._sort(category, key)
+                    self._save()
+                    return
+
+        self.data[category].append(metrics_copy)
+        self._sort(category, key)
+        self._save()
+        
+    def _save(self):
+        with open(self.log_path, 'w', encoding='utf-8') as f:
+            json.dump(self.data, f, indent=2)
+
+    def delete(self, key: str):
+        if key in self.data:
+            del self.data[key]
+            self._save()
+            print(f"Key '{key}' was successfully deleted.")
+        else:
+            print(f"Key '{key}' not found.")
+
 @dataclass
 class ModelContext:
     configs: Configs
@@ -34,6 +86,10 @@ class ModelContext:
     optimizer: Optional[torch.optim.AdamW] = None
     scaler: Optional[torch.amp.GradScaler] = None
     train_state: Optional[TrainState] = None
+    logger: Logger = field(init=False)
+
+    def __post_init__(self):
+        self.logger = Logger(out_dir=self.configs.out_dir)
 
     def from_pretrained(self):
         from transformers import GPT2LMHeadModel
@@ -121,6 +177,8 @@ class ModelContext:
         
         print(self.configs.info())
         print(f"Total Params: {self.model.get_num_params()/1e6:.2f}M")
+
+        self.logger.set_meta({"params": self.model.get_num_params(), **self.configs.to_dict()})
 
     def save_model(self, filename):
         if self.configs.train_type.value.save_ckpt:

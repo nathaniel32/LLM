@@ -5,7 +5,6 @@ from contextlib import nullcontext
 import math
 import time
 from config import Configs, args, args_configs
-from logger import Logger
 from utils import set_seed, ModelContext
 
 class Train:
@@ -19,9 +18,7 @@ class Train:
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         ptdtype = {'float32': torch.float32, 'bfloat16': torch.bfloat16, 'float16': torch.float16}[self.model_context.configs.train_type.value.dtype]
         self.ctx = nullcontext() if self.device == 'cpu' else torch.amp.autocast(device_type=self.device, dtype=ptdtype)
-        
-        self.logger = Logger(out_dir=self.model_context.configs.out_dir)
-        
+             
         self.model_context.configs.dataset_type.value.prepare_dataset()
     
     def get_batch(self, split):
@@ -119,7 +116,6 @@ class Train:
     
     def train(self, resume=True):
         self.model_context.get_model(resume=resume, device=self.device)
-        self.logger.set_meta({"params": self.model_context.model.get_num_params(), **self.model_context.configs.to_dict()})
         
         self.model_context.configs.in_training = True
         
@@ -146,7 +142,7 @@ class Train:
                 else:
                     self.model_context.train_state.patience_counter += 1
 
-                self.logger.log(category="val_log", key="iter", metrics={
+                self.model_context.logger.log(category="val_log", key="iter", metrics={
                     "iter": self.model_context.train_state.iter_num,
                     "patience": self.model_context.train_state.patience_counter,
                     'best_val_loss': float(self.model_context.train_state.best_val_loss) if self.model_context.train_state.best_val_loss != float('inf') else None,
@@ -202,7 +198,7 @@ class Train:
                     mfu = self.model_context.model.estimate_mfu(self.model_context.configs.train_type.value.batch_size * self.model_context.configs.train_type.value.gradient_accumulation_steps, delta_time)
                     running_mfu = mfu if running_mfu == -1.0 else 0.9*running_mfu + 0.1*mfu
                 
-                self.logger.log(category="train_log", key="iter", metrics={
+                self.model_context.logger.log(category="train_log", key="iter", metrics={
                     "iter": self.model_context.train_state.iter_num,
                     "train_loss": float(lossf),
                     "time_ms": delta_time*1000,
