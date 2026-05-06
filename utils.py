@@ -126,7 +126,7 @@ class ModelContext:
                 with torch.no_grad():
                     sd[k].copy_(sd_hf[k])
 
-    def load_model(self, resume, device, filename='last_checkpoint.pt'):
+    def load_model(self, resume, device, filename):
         ckpt_path = os.path.join(self.configs.out_dir, filename)
         if not os.path.exists(ckpt_path):
             print("Checkpoint not found!")
