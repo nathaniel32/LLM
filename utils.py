@@ -7,7 +7,7 @@ from dataclasses import dataclass
 import random
 from typing import Optional
 from model import Transformer
-from config import Configs
+from config import Configs, AttnType, PosType, NormType
 
 def set_seed(seed=1234):        
     random.seed(seed)
@@ -34,6 +34,41 @@ class ModelContext:
     optimizer: Optional[torch.optim.AdamW] = None
     scaler: Optional[torch.amp.GradScaler] = None
     train_state: Optional[TrainState] = None
+
+    def from_pretrained(self):
+        from transformers import GPT2LMHeadModel
+
+        # create a from-scratch initialized minGPT model
+        self.configs = Configs(flash=True, model_type=self.configs.model_type, attn_type=AttnType.MHA, pos_type=PosType.WPE, norm_type=NormType.LAYER)
+
+        self.model = Transformer(self.configs)
+        sd = self.model.state_dict()
+        sd_keys = sd.keys()
+        sd_keys = [k for k in sd_keys if not k.endswith('.attn.bias')] # discard this mask / buffer, not a param
+
+        # init a huggingface/transformers model
+        model_hf = GPT2LMHeadModel.from_pretrained(self.configs.model_type.value.name)
+        sd_hf = model_hf.state_dict()
+
+        # copy while ensuring all of the parameters are aligned and match in names and shapes
+        sd_keys_hf = sd_hf.keys()
+        sd_keys_hf = [k for k in sd_keys_hf if not k.endswith('.attn.masked_bias')] # ignore these, just a buffer
+        sd_keys_hf = [k for k in sd_keys_hf if not k.endswith('.attn.bias')] # same, just the mask (buffer)
+        transposed = ['attn.c_attn.weight', 'attn.c_proj.weight', 'mlp.c_fc.weight', 'mlp.c_proj.weight']
+        # basically the openai checkpoints use a "Conv1D" module, but we only want to use a vanilla Linear
+        # this means that we have to transpose these weights when we import them
+        assert len(sd_keys_hf) == len(sd_keys), f"mismatched keys: {len(sd_keys_hf)} != {len(sd_keys)}"
+        for k in sd_keys_hf:
+            if any(k.endswith(w) for w in transposed):
+                # special treatment for the Conv1D weights we need to transpose
+                assert sd_hf[k].shape[::-1] == sd[k].shape
+                with torch.no_grad():
+                    sd[k].copy_(sd_hf[k].t())
+            else:
+                # vanilla copy over the other parameters
+                assert sd_hf[k].shape == sd[k].shape
+                with torch.no_grad():
+                    sd[k].copy_(sd_hf[k])
 
     def get_model(self, resume, device, filename='last_checkpoint.pt'):
         ckpt_path = os.path.join(self.configs.out_dir, filename)
