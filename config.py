@@ -177,7 +177,7 @@ class TrainType(Enum):
 
         patience=None,
         decay_lr=True,
-        save_ckpt=True
+        save_ckpt=False
     )
 
 #########################################################################################
