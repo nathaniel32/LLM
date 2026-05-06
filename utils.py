@@ -82,11 +82,11 @@ class Logger:
 @dataclass
 class ModelContext:
     configs: Configs
+    logger: Logger = field(init=False)
     model: Optional[Transformer] = None
     optimizer: Optional[torch.optim.AdamW] = None
     scaler: Optional[torch.amp.GradScaler] = None
     train_state: Optional[TrainState] = None
-    logger: Logger = field(init=False)
 
     def __post_init__(self):
         self.logger = Logger(out_dir=self.configs.out_dir)
