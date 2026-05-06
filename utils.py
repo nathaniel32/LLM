@@ -28,7 +28,7 @@ class TrainState:
         return {"iter_num": self.iter_num, "best_val_loss": self.best_val_loss, "patience_counter": self.patience_counter}
 
 @dataclass
-class MetaData:
+class ModelContext:
     configs: Configs
     model: Optional[Transformer] = None
     optimizer: Optional[torch.optim.AdamW] = None
