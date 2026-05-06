@@ -25,10 +25,10 @@ class TrainState:
 @dataclass
 class MetaData:
     configs: Configs
-    model: Optional[Transformer] = None           # FIX #1: tambah default None
-    optimizer: Optional[torch.optim.AdamW] = None # FIX #1: tambah default None
-    scaler: Optional[torch.amp.GradScaler] = None  # FIX #1: tambah default None
-    train_state: Optional[TrainState] = None       # FIX #1: tambah default None
+    model: Optional[Transformer] = None
+    optimizer: Optional[torch.optim.AdamW] = None
+    scaler: Optional[torch.amp.GradScaler] = None
+    train_state: Optional[TrainState] = None
 
     def get_model(self, resume, device, filename='last_checkpoint.pt'):
         ckpt_path = os.path.join(self.configs.out_dir, filename)
@@ -42,8 +42,8 @@ class MetaData:
             print(f"Resuming training from {self.configs.out_dir}")
             
             checkpoint = torch.load(ckpt_path, map_location=device)
-            self.configs = Configs(**checkpoint['configs'])          # FIX #2: key 'configs'
-            self.train_state = TrainState(**checkpoint['train_state']) # FIX #2: key 'train_state'
+            self.configs = Configs(**checkpoint['configs'])
+            self.train_state = TrainState(**checkpoint['train_state'])
             
             print(self.configs.info())
             print(self.train_state.info())
@@ -88,8 +88,8 @@ class MetaData:
                 'model': self.model.state_dict(),
                 'optimizer': self.optimizer.state_dict(),
                 'scaler': self.scaler.state_dict(),
-                'configs': asdict(self.configs),            # FIX #2: key 'configs' (konsisten dengan get_model)
-                'train_state': asdict(self.train_state),    # FIX #2: key 'train_state' (konsisten dengan get_model)
+                'configs': asdict(self.configs),
+                'train_state': asdict(self.train_state),
                 'rng_state_torch': torch.get_rng_state(),
                 'rng_state_numpy': np.random.get_state(),
                 'rng_state_python': random.getstate(),
@@ -101,7 +101,7 @@ class MetaData:
             path = os.path.join(self.configs.out_dir, filename)
             print(f"saving checkpoint to {path}")
             
-            torch.save(checkpoint, path)  # FIX #3: hapus asdict() — checkpoint sudah dict biasa
+            torch.save(checkpoint, path)
             print("Checkpoint saved successfully.")
         else:
             print("save_ckpt:", self.configs.train_type.value.save_ckpt)
