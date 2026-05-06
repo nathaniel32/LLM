@@ -115,7 +115,7 @@ class Train:
         return out
     
     def train(self, resume=True):
-        self.model_context.get_model(resume=resume, device=self.device)
+        self.model_context.load_model(resume=resume, device=self.device)
         
         self.model_context.configs.in_training = True
         
