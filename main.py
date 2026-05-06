@@ -94,7 +94,7 @@ class Main:
         print("Warm-up done.\n")
 
     def run(self, max_new_tokens, start, temperature=0.8, top_k=200, pretrained=False):
-        self.model_context.from_pretrained() if pretrained else self.model_context.get_model(resume=True, device=self.device, filename='best_checkpoint.pt')
+        self.model_context.from_pretrained() if pretrained else self.model_context.load_model(resume=True, device=self.device, filename='best_checkpoint.pt')
         
         self.model_context.model.eval()
         self.model_context.model.to(self.device)
