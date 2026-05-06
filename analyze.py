@@ -20,7 +20,7 @@ def plot_comparison(configs_list, log_type, cols, save_dir='out/plot'):
             
             log_data = metrics_data.get(log_type)
                 
-            label_name = f"{conf.attn_type.name} | {conf.pos_type.name} | {metrics_data['params']/1e6:.2f}M"
+            label_name = f"{model_context.configs.attn_type.name} | {model_context.configs.pos_type.name} | {metrics_data['params']/1e6:.2f}M"
             col_iters = [d['iter'] for d in log_data]
             
             col_value = [d[col] for d in log_data]
