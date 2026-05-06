@@ -18,15 +18,6 @@ def set_seed(seed=1234):
         torch.cuda.manual_seed(seed)
         torch.cuda.manual_seed_all(seed)
 
-@dataclass
-class TrainState:
-    iter_num: int = 0
-    best_val_loss: float = float('inf')
-    patience_counter: int = 0
-
-    def info(self):
-        return {"iter_num": self.iter_num, "best_val_loss": self.best_val_loss, "patience_counter": self.patience_counter}
-
 class Logger:
     def __init__(self, out_dir, filename="metrics.json"):
         self.out_dir = out_dir
@@ -78,6 +69,15 @@ class Logger:
             print(f"Key '{key}' was successfully deleted.")
         else:
             print(f"Key '{key}' not found.")
+
+@dataclass
+class TrainState:
+    iter_num: int = 0
+    best_val_loss: float = float('inf')
+    patience_counter: int = 0
+
+    def info(self):
+        return {"iter_num": self.iter_num, "best_val_loss": self.best_val_loss, "patience_counter": self.patience_counter}
 
 @dataclass
 class ModelContext:
