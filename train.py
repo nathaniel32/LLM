@@ -14,14 +14,13 @@ class Train:
         torch.backends.cuda.matmul.allow_tf32 = True # allow tf32 on matmul
         torch.backends.cudnn.allow_tf32 = True # allow tf32 on cudnn
 
-        self.configs = configs
         self.model_context = ModelContext(configs=configs)
         
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         ptdtype = {'float32': torch.float32, 'bfloat16': torch.bfloat16, 'float16': torch.float16}[self.model_context.configs.train_type.value.dtype]
         self.ctx = nullcontext() if self.device == 'cpu' else torch.amp.autocast(device_type=self.device, dtype=ptdtype)
         
-        self.logger = Logger(out_dir=configs.out_dir)
+        self.logger = Logger(out_dir=self.model_context.configs.out_dir)
         
         self.model_context.configs.dataset_type.value.prepare_dataset()
     
