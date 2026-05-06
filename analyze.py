@@ -23,8 +23,8 @@ def plot_comparison(configs_list, log_type, cols, save_dir='out/plot'):
             label_name = f"{conf.attn_type.name} | {conf.pos_type.name} | {metrics_data['params']/1e6:.2f}M"
             col_iters = [d['iter'] for d in log_data]
             
-            col_val_loss = [d[col] for d in log_data]
-            plt.plot(col_iters, col_val_loss, '-', label=label_name, linewidth=2.5, color=cmap(i))
+            col_value = [d[col] for d in log_data]
+            plt.plot(col_iters, col_value, '-', label=label_name, linewidth=2.5, color=cmap(i))
 
         plt.yscale('log')
         plt.title(f'Comparison - {col}', fontsize=14, pad=15)
