@@ -127,6 +127,7 @@ class AttnType(Enum):
     MLA_ISO = AttnConfig(name="attn_mla_iso", mlp_ratio=4.728, is_mla=True)
 
 class PosType(Enum):
+    NO_POS = PosConfig(name="no_pos")
     WPE = PosConfig(name="pos_wpe")
     ROPE = PosConfig(name="pos_rope")
 
